@@ -30,7 +30,7 @@
 /* USER CODE BEGIN PTD */
 typedef enum
 {
-	AccelReadState,
+  AccelReadState,
 
 } eSystemState;
 
@@ -53,8 +53,8 @@ UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-uint8_t data_rec[6]; //adxl takes 6 bits data atored here
-uint16_t x,y,z;
+uint8_t data_rec[6]; // The 6 bytes of ADXL data are stored here
+uint16_t x, y, z;
 float xg, yg, zg;
 eSystemState eNextState = AccelReadState;
 /* USER CODE END PV */
@@ -73,69 +73,68 @@ static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN 0 */
 void adxl_write (uint8_t address, uint8_t value)
 {
-    uint8_t data[2];
-    data[0] = address|0x40;  // multibyte write enabled
-    data[1] = value;
-    HAL_GPIO_WritePin (GPIOC, GPIO_PIN_12, GPIO_PIN_RESET); // pull the cs pin low to enable the slave
-    HAL_SPI_Transmit (&hspi3, data, 2, 100);  // transmit the address and data
-    HAL_GPIO_WritePin (GPIOC, GPIO_PIN_12, GPIO_PIN_SET); // pull the cs pin high to disable the slave
+  uint8_t data[2];
+  data[0] = address|0x40;  // multibyte write enabled
+  data[1] = value;
+  HAL_GPIO_WritePin (ADXL_CS_GPIO_Port, ADXL_CS_Pin, GPIO_PIN_RESET); // pull the cs pin low to enable the slave
+  HAL_SPI_Transmit (&hspi3, data, 2, 100);  // transmit the address and data
+  HAL_GPIO_WritePin (ADXL_CS_GPIO_Port, ADXL_CS_Pin, GPIO_PIN_SET); // pull the cs pin high to disable the slave
 }
 
 void adxl_read (uint8_t address)
 {
-    address |= 0x80;  // read operation
-    address |= 0x40;  // multibyte read
-    HAL_GPIO_WritePin (GPIOC, GPIO_PIN_12, GPIO_PIN_RESET);  // pull the cs pin low to enable the slave
-    HAL_SPI_Transmit (&hspi3, &address, 1, 100);  // send the address from where you want to read data
-    HAL_SPI_Receive (&hspi3, data_rec, 6, 100);  // read 6 BYTES of data
-    HAL_GPIO_WritePin (GPIOC, GPIO_PIN_12, GPIO_PIN_SET);  // pull the cs pin high to disable the slave
+  address |= 0x80;  // read operation
+  address |= 0x40;  // multibyte read
+  HAL_GPIO_WritePin (ADXL_CS_GPIO_Port, ADXL_CS_Pin, GPIO_PIN_RESET);  // pull the cs pin low to enable the slave
+  HAL_SPI_Transmit (&hspi3, &address, 1, 100);  // send the address from where you want to read data
+  HAL_SPI_Receive (&hspi3, data_rec, 6, 100);  // read 6 BYTES of data
+  HAL_GPIO_WritePin (ADXL_CS_GPIO_Port, ADXL_CS_Pin, GPIO_PIN_SET);  // pull the cs pin high to disable the slave
 }
 
 void adxl_init (void)
 {
-    adxl_write (0x31, 0x01);  // data_format range= +- 4g
-    adxl_write (0x2d, 0x00);  // reset all bits
-    adxl_write (0x2d, 0x08);  // power_cntl measure and wake up 8hz
+  adxl_write (0x31, 0x01);  // data_format range= +- 4g
+  adxl_write (0x2d, 0x00);  // reset all bits
+  adxl_write (0x2d, 0x08);  // power_cntl measure and wake up 8hz
 
 }
 
 void check_device_id(void)
 {
-    uint8_t device_id_addr = 0x00; // Address of the device ID register
-    uint8_t device_id = 0;
-    adxl_read(device_id_addr); // Assuming this will populate 'data_rec' with the ID
+  uint8_t device_id_addr = 0x00; // Address of the device ID register
+  uint8_t device_id = 0;
+  adxl_read(device_id_addr); // Assuming this will populate 'data_rec' with the ID
 
-    device_id = data_rec[0]; // Assuming the ID is the first byte read
-    char debug_message[30];
-    sprintf(debug_message, "Device ID: 0x%X\r\n", device_id);
-    HAL_UART_Transmit(&huart1, (uint8_t*)debug_message, strlen(debug_message), 100);
-    HAL_UART_Transmit(&huart2, (uint8_t*)debug_message, strlen(debug_message), 100);
+  device_id = data_rec[0]; // Assuming the ID is the first byte read
+  char debug_message[30];
+  sprintf(debug_message, "Device ID: 0x%X\r\n", device_id);
+  HAL_UART_Transmit(&huart1, (uint8_t*)debug_message, strlen(debug_message), 100);
+  HAL_UART_Transmit(&huart2, (uint8_t*)debug_message, strlen(debug_message), 100);
 
 }
 
 eSystemState runAcceleromter(void)
 {
-		adxl_read(0x32); // Request data starting from the DATAX0 register
-	  	      // Convert the accelerometer values to 16-bit signed integers
-		int16_t x_raw = (int16_t)((data_rec[1] << 8) | data_rec[0]);
-	  	int16_t y_raw = (int16_t)((data_rec[3] << 8) | data_rec[2]);
-	  	int16_t z_raw = (int16_t)((data_rec[5] << 8) | data_rec[4]);
+  adxl_read(0x32); // Request data starting from the DATAX0 register
+  // Convert the accelerometer values to 16-bit signed integers
+  int16_t x_raw = (int16_t)((data_rec[1] << 8) | data_rec[0]);
+  int16_t y_raw = (int16_t)((data_rec[3] << 8) | data_rec[2]);
+  int16_t z_raw = (int16_t)((data_rec[5] << 8) | data_rec[4]);
 
-	  	      // Convert raw values to g's
-	  	xg = x_raw * 0.0078;
-	  	yg = y_raw * 0.0078;
-	  	zg = z_raw * 0.0078;
+  // Convert raw values to g's
+  xg = x_raw * 0.0078;
+  yg = y_raw * 0.0078;
+  zg = z_raw * 0.0078;
 
-	  	char uart_buf[64];
-	  	int len = snprintf(uart_buf, sizeof(uart_buf), "X=%0.2f, Y=%0.2f, Z=%0.2f\r\n", xg, yg, zg);
-	  	if(len > 0 && len < sizeof(uart_buf))
-	  	{
-	  		HAL_Delay(200); //placed for data readability
-	  		HAL_UART_Transmit(&huart1, (uint8_t*)uart_buf, len, HAL_MAX_DELAY);
-	  		HAL_UART_Transmit(&huart2, (uint8_t*)uart_buf, len, HAL_MAX_DELAY);// Send data
-	  	}
+  char uart_buf[64];
+  int len = snprintf(uart_buf, sizeof(uart_buf), "X=%0.2f, Y=%0.2f, Z=%0.2f\r\n", xg, yg, zg);
+  if(len > 0 && len < sizeof(uart_buf)) {
+    HAL_Delay(200); //placed for data readability
+    HAL_UART_Transmit(&huart1, (uint8_t*)uart_buf, len, HAL_MAX_DELAY);
+    HAL_UART_Transmit(&huart2, (uint8_t*)uart_buf, len, HAL_MAX_DELAY);// Send data
+  }
 
-	  	return AccelReadState;
+  return AccelReadState;
 }
 
 /* USER CODE END 0 */
@@ -182,16 +181,16 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  switch(eNextState)
-	  {
-	  	  case AccelReadState:
-	  		  eNextState = runAcceleromter();
-	      break;
+    switch(eNextState)
+    {
+      case AccelReadState:
+        eNextState = runAcceleromter();
+      break;
 
-	  	  default:
-	  		  eNextState = runAcceleromter();
-	      break;
-	  }
+      default:
+        eNextState = runAcceleromter();
+      break;
+    }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
