@@ -60,8 +60,8 @@ all: main-build
 main-build: PlatformTestScript.elf secondary-outputs
 
 # Tool invocations
-PlatformTestScript.elf PlatformTestScript.map: $(OBJS) $(USER_OBJS) C:\Users\Warren\STM32CubeIDE\SeniorDesignProject\PlatformTestScript\STM32F411RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "PlatformTestScript.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\Warren\STM32CubeIDE\SeniorDesignProject\PlatformTestScript\STM32F411RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="PlatformTestScript.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+PlatformTestScript.elf PlatformTestScript.map: $(OBJS) $(USER_OBJS) C:\Users\XP\Documents\Senior\ Product\ Design\ Project\PlatformTestScript\STM32F411RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "PlatformTestScript.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\XP\Documents\Senior Product Design Project\PlatformTestScript\STM32F411RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="PlatformTestScript.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

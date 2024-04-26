@@ -32,10 +32,19 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 float offset = 0; //angle of center position relative to servo neutral
-float XPos = -135; //desired X Axis angle, range: -135 to +135
-float YPos = +135; //desired Y Axis angle, range: -135 to +135
-float XVal; //CCR value for desired X Axis angle
-float YVal; //CCR value for desired Y Axis angle
+float XPos = 90; //desired X Axis angle, range: -135 to +135
+float YPos = 90; //desired Y Axis angle, range: -135 to +135
+// CCR values for the desired X or Y Axis angle
+float XValP;
+float XValN;
+float YValP;
+float YValN;
+// CCR values for the desired X or Y Axis angle / 2
+float XValP2;
+float XValN2;
+float YValP2;
+float YValN2;
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -104,36 +113,57 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
-  {
-
-	  if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13)==GPIO_PIN_RESET)
-	  {
-	  	/*Move X Axis */
-	    XVal = 75 + (XPos + offset)*(1/2.7); //Calculate CCR value for desired XPos
-	  	htim2.Instance->CCR1 = 75; //Move to Neutral
-	  	HAL_Delay(3000);
-	  	htim2.Instance->CCR1 = XVal; //Move to XPos
-	  	HAL_Delay(3000);
-	  	htim2.Instance->CCR1 = 75; //Return to Neutral
-	  	HAL_Delay(2000);
-
-	    /*Move Y Axis */
-	    YVal = 75 + (YPos + offset)*(1/2.7); //Calculate CCR value for desired XPos
-	  	htim2.Instance->CCR2 = 75; //Move to Neutral
-	  	HAL_Delay(3000);
-	  	htim2.Instance->CCR2 = YVal; //Move to YPos
-	  	HAL_Delay(3000);
-	    htim2.Instance->CCR2 = 75; //Return to Neutral
-	  }
-
+  while (1) {
+	  if (HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin) == GPIO_PIN_RESET) {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-  }
-  /* USER CODE END 3 */
-}
+    /* Calculate CCR Values */
+    XValP = SERVO_NEUTRAL + (XPos + offset)*(1/2.7); // Calculate CCR value for desired +XPos
+    XValN = SERVO_NEUTRAL + (-XPos + offset)*(1/2.7); // Calculate CCR value for desired -XPos
+    YValP = SERVO_NEUTRAL + (YPos + offset)*(1/2.7); // Calculate CCR value for desired +YPos
+    YValN = SERVO_NEUTRAL + (-YPos + offset)*(1/2.7); // Calculate CCR value for desired -YPos
+    XValP2 = SERVO_NEUTRAL + (XPos/2 + offset)*(1/2.7); // Calculate CCR value for desired +XPos
+    XValN2 = SERVO_NEUTRAL + (-XPos/2 + offset)*(1/2.7); // Calculate CCR value for desired -XPos
+    YValP2 = SERVO_NEUTRAL + (YPos/2 + offset)*(1/2.7); // Calculate CCR value for desired +YPos
+    YValN2 = SERVO_NEUTRAL + (-YPos/2 + offset)*(1/2.7); // Calculate CCR value for desired -YPos
 
+    /* Move X Axis */
+    htim2.Instance->CCR_X = XValN; // Move X-Axis to -XPos
+    HAL_Delay(3000);
+    htim2.Instance->CCR_X = XValP; // Move X-Axis to +XPos
+    HAL_Delay(3000);
+    htim2.Instance->CCR_X = SERVO_NEUTRAL; // Return X-Axis to Neutral
+    HAL_Delay(3000);
+
+    /* Move Y Axis */
+    htim2.Instance->CCR_Y = YValN; // Move Y-Axis to -YPos
+    HAL_Delay(3000);
+    htim2.Instance->CCR_Y = YValP; // Move Y-Axis to +YPos
+    HAL_Delay(3000);
+    htim2.Instance->CCR_Y = SERVO_NEUTRAL; // Return Y-Axis to Neutral
+    HAL_Delay(3000);
+
+    /* Move Both Axes */
+    htim2.Instance->CCR_X = XValN2; // Move X-Axis to -XPos
+    htim2.Instance->CCR_Y = YValN2; // Move Y-Axis to -YPos
+    HAL_Delay(3000);
+    htim2.Instance->CCR_X = XValP2; // Move X-Axis to -XPos
+    htim2.Instance->CCR_Y = YValN2; // Move Y-Axis to -YPos
+    HAL_Delay(3000);
+    htim2.Instance->CCR_X = XValP2; // Move X-Axis to -XPos
+    htim2.Instance->CCR_Y = YValP2; // Move Y-Axis to -YPos
+    HAL_Delay(3000);
+    htim2.Instance->CCR_X = XValN2; // Move X-Axis to +XPos
+    htim2.Instance->CCR_Y = YValP2; // Move Y-Axis to +YPos
+    HAL_Delay(3000);
+    htim2.Instance->CCR_X = SERVO_NEUTRAL; // Return X-Axis to Neutral
+    htim2.Instance->CCR_Y = SERVO_NEUTRAL; // Return Y-Axis to Neutral
+    HAL_Delay(3000);
+    }
+  /* USER CODE END 3 */
+  }
+}
 /**
   * @brief System Clock Configuration
   * @retval None

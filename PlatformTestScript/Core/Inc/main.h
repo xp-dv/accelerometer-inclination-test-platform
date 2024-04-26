@@ -75,6 +75,9 @@ void Error_Handler(void);
 #define SWO_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
+#define SERVO_NEUTRAL 75.5
+#define CCR_X CCR1
+#define CCR_Y CCR2
 
 /* USER CODE END Private defines */
 
