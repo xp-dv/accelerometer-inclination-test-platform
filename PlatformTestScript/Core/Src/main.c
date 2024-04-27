@@ -31,19 +31,6 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-float offset = 0; //angle of center position relative to servo neutral
-float XPos = 90; //desired X Axis angle, range: -135 to +135
-float YPos = 90; //desired Y Axis angle, range: -135 to +135
-// CCR values for the desired X or Y Axis angle
-float XValP;
-float XValN;
-float YValP;
-float YValN;
-// CCR values for the desired X or Y Axis angle / 2
-float XValP2;
-float XValN2;
-float YValP2;
-float YValN2;
 
 /* USER CODE END PD */
 
@@ -57,7 +44,19 @@ TIM_HandleTypeDef htim2;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-
+float offset = 0; // Angle of center position relative to servo neutral
+float XPos = 90; // Desired X Axis angle, range: -135 to +135
+float YPos = 90; // Desired Y Axis angle, range: -135 to +135
+// CCR values for the desired X or Y Axis angle
+float XValP;
+float XValN;
+float YValP;
+float YValN;
+// CCR values for the desired X or Y Axis angle / 2
+float XValP2;
+float XValN2;
+float YValP2;
+float YValN2;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -128,7 +127,7 @@ int main(void)
     YValP2 = SERVO_NEUTRAL + (YPos/2 + offset)*(1/2.7); // Calculate CCR value for desired +YPos
     YValN2 = SERVO_NEUTRAL + (-YPos/2 + offset)*(1/2.7); // Calculate CCR value for desired -YPos
 
-    /* Move X Axis */
+    /* Move X-Axis */
     htim2.Instance->CCR_X = XValN; // Move X-Axis to -XPos
     HAL_Delay(3000);
     htim2.Instance->CCR_X = XValP; // Move X-Axis to +XPos
@@ -136,7 +135,7 @@ int main(void)
     htim2.Instance->CCR_X = SERVO_NEUTRAL; // Return X-Axis to Neutral
     HAL_Delay(3000);
 
-    /* Move Y Axis */
+    /* Move Y-Axis */
     htim2.Instance->CCR_Y = YValN; // Move Y-Axis to -YPos
     HAL_Delay(3000);
     htim2.Instance->CCR_Y = YValP; // Move Y-Axis to +YPos
