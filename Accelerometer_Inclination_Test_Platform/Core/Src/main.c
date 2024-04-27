@@ -21,24 +21,40 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "stdio.h"
-#include "string.h"
-#include "stm32f4xx_hal.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-typedef enum
-{
-  AccelReadState,
-
+typedef enum {
+  STARTUP_STATE,
+  WAITING_STATE,
+  DEFINE_PROFILE_STATE,
+  SELECT_PROFILE_STATE,
+  RUN_PROFILE_STATE,
+  MOVE_SERVO_STATE,
 } eSystemState;
 
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#ifdef TEST // The following code will only be compiled if TEST is defined in the header file
+  #define PULSE_WIDTH_RANGE (PULSE_WIDTH_MAX - PULSE_WIDTH_MIN)
+  #define PULSE_WIDTH_MIN 500 // us
+  #define PULSE_WIDTH_NEG_90 (PULSE_WIDTH_0 - (PULSE_WIDTH_RANGE / 3))
+  #define PULSE_WIDTH_NEG_45 (PULSE_WIDTH_0 - (PULSE_WIDTH_RANGE / 6))
+  #define PULSE_WIDTH_0 ((PULSE_WIDTH_MAX + PULSE_WIDTH_MIN) / 2)
+  #define PULSE_WIDTH_POS_45 (PULSE_WIDTH_0 + (PULSE_WIDTH_RANGE / 6))
+  #define PULSE_WIDTH_POS_90 (PULSE_WIDTH_0 + (PULSE_WIDTH_RANGE / 3))
+  #define PULSE_WIDTH_MAX 2500 // us
+  #define PULSE_WIDTH_OFFSET_X -15
+  #define PULSE_WIDTH_OFFSET_Y -25
+  #define SERVO_TEST_DELAY 3000 // ms
 
+  //! Alternate Servo Control Method
+  // #define SERVO_NEUTRAL 75.5
+#endif
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -49,14 +65,39 @@ typedef enum
 /* Private variables ---------------------------------------------------------*/
 SPI_HandleTypeDef hspi3;
 
+TIM_HandleTypeDef htim2;
+
 UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
+// Accelerometer Read
 uint8_t data_rec[6]; // The 6 bytes of ADXL data are stored here
 uint16_t x, y, z;
 float xg, yg, zg;
-eSystemState eNextState = AccelReadState;
+
+// Servo Motor Control
+float pos_x;
+float pos_y;
+float pos_x_last;
+float pos_y_last;
+
+//*TODO Finish move_servo()
+// int i = 0;
+// int posnum;
+// int poslist;
+// int loopnum;
+
+#ifdef TEST // The following code will only be compiled if TEST is defined in the header file
+  //! Alternate Servo Control Method
+  // float offset = 0; // Angle of center position relative to servo neutral
+  // float XPos = 90; // Desired X Axis angle, range: -135 to +135
+  // float YPos = 90; // Desired Y Axis angle, range: -135 to +135
+  // // CCR values for the desired X or Y Axis angle
+  // float XValP, XValN, YValP, YValN;
+  // // CCR values for the desired X or Y Axis angle / 2
+  // float XValP2, XValN2, YValP2, YValN2;
+#endif
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -65,45 +106,62 @@ static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_SPI3_Init(void);
 static void MX_USART1_UART_Init(void);
+static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
+int move_servo(float pos_x, float pos_y, int v_x, int v_y) {
+  //*TODO Incremental position movement. Call the read accelerometer function every time the position is updated
+  //*TODO Convert x and y-axis angular position to pulse width position
+  //! For now pos_x, pos_y, v_x, and v_y are in units of 1 ms pulse width
+  int pos_x_pw = pos_x;
+  int pos_y_pw = pos_y;
+  int sample_rate = 1; // 1 ms
+  v_x = pos_x - pos_x_last;
+  v_y = pos_y - pos_y_last;
+  for (pos_x_pw = pos_x_last, pos_y_pw = pos_y_last; pos_x_pw != pos_x_last && pos_y_pw != pos_y_last; pos_x_pw += v_x, pos_y_pw += v_y) { //*TODO Conditional statements not functional in case velocity isn't an exact multiple
+    adxl_read();
+    CCR_X = pos_x_pw;
+    CCR_X = pos_y_pw;
+    delay_us(sample_rate);
+  }
+  //! Alternate Servo Control Method
+  // CCR = 75 + (angle)(1/2.7)
+  // 1 degree = 2.7 CCR
+  // CCR1 = 75 + pos_x*(1/2.7); // Move x-axis servo
 
-/* USER CODE END PFP */
+  // CCR2 = 75 + pos_y*(1/2.7); // Move y-axis servo
+  // HAL_Delay(1000); // Wait before moving again
+}
 
-/* Private user code ---------------------------------------------------------*/
-/* USER CODE BEGIN 0 */
-void adxl_write (uint8_t address, uint8_t value)
-{
+void adxl_tx(uint8_t address, uint8_t value) {
   uint8_t data[2];
   data[0] = address|0x40;  // multibyte write enabled
   data[1] = value;
-  HAL_GPIO_WritePin (ADXL_CS_GPIO_Port, ADXL_CS_Pin, GPIO_PIN_RESET); // pull the cs pin low to enable the slave
-  HAL_SPI_Transmit (&hspi3, data, 2, 100);  // transmit the address and data
-  HAL_GPIO_WritePin (ADXL_CS_GPIO_Port, ADXL_CS_Pin, GPIO_PIN_SET); // pull the cs pin high to disable the slave
+  HAL_GPIO_WritePin(ADXL_CS_GPIO_Port, ADXL_CS_Pin, GPIO_PIN_RESET); // pull the cs pin low to enable the slave
+  HAL_SPI_Transmit(&hspi3, data, 2, 100);  // transmit the address and data
+  HAL_GPIO_WritePin(ADXL_CS_GPIO_Port, ADXL_CS_Pin, GPIO_PIN_SET); // pull the cs pin high to disable the slave
 }
 
-void adxl_read (uint8_t address)
-{
+void adxl_rx(uint8_t address) {
   address |= 0x80;  // read operation
   address |= 0x40;  // multibyte read
-  HAL_GPIO_WritePin (ADXL_CS_GPIO_Port, ADXL_CS_Pin, GPIO_PIN_RESET);  // pull the cs pin low to enable the slave
-  HAL_SPI_Transmit (&hspi3, &address, 1, 100);  // send the address from where you want to read data
-  HAL_SPI_Receive (&hspi3, data_rec, 6, 100);  // read 6 BYTES of data
-  HAL_GPIO_WritePin (ADXL_CS_GPIO_Port, ADXL_CS_Pin, GPIO_PIN_SET);  // pull the cs pin high to disable the slave
+  HAL_GPIO_WritePin(ADXL_CS_GPIO_Port, ADXL_CS_Pin, GPIO_PIN_RESET);  // pull the cs pin low to enable the slave
+  HAL_SPI_Transmit(&hspi3, &address, 1, 100);  // send the address from where you want to read data
+  HAL_SPI_Receive(&hspi3, data_rec, 6, 100);  // read 6 BYTES of data
+  HAL_GPIO_WritePin(ADXL_CS_GPIO_Port, ADXL_CS_Pin, GPIO_PIN_SET);  // pull the cs pin high to disable the slave
 }
 
-void adxl_init (void)
-{
-  adxl_write (0x31, 0x01);  // data_format range= +- 4g
-  adxl_write (0x2d, 0x00);  // reset all bits
-  adxl_write (0x2d, 0x08);  // power_cntl measure and wake up 8hz
+void adxl_init(void) {
+  HAL_Delay(2000);
+  adxl_tx(0x31, 0x01);  // data_format range= +- 4g
+  adxl_tx(0x2d, 0x00);  // reset all bits
+  adxl_tx(0x2d, 0x08);  // power_cntl measure and wake up 8hz
 
 }
 
-void check_device_id(void)
-{
+void adxl_id(void) {
   uint8_t device_id_addr = 0x00; // Address of the device ID register
   uint8_t device_id = 0;
-  adxl_read(device_id_addr); // Assuming this will populate 'data_rec' with the ID
+  adxl_rx(device_id_addr); // Assuming this will populate 'data_rec' with the ID
 
   device_id = data_rec[0]; // Assuming the ID is the first byte read
   char debug_message[30];
@@ -113,9 +171,8 @@ void check_device_id(void)
 
 }
 
-eSystemState runAcceleromter(void)
-{
-  adxl_read(0x32); // Request data starting from the DATAX0 register
+void adxl_read(void) {
+  adxl_rx(0x32); // Request data starting from the DATAX0 register
   // Convert the accelerometer values to 16-bit signed integers
   int16_t x_raw = (int16_t)((data_rec[1] << 8) | data_rec[0]);
   int16_t y_raw = (int16_t)((data_rec[3] << 8) | data_rec[2]);
@@ -128,15 +185,163 @@ eSystemState runAcceleromter(void)
 
   char uart_buf[64];
   int len = snprintf(uart_buf, sizeof(uart_buf), "X=%0.2f, Y=%0.2f, Z=%0.2f\r\n", xg, yg, zg);
-  if(len > 0 && len < sizeof(uart_buf)) {
-    HAL_Delay(200); //placed for data readability
+  if (len > 0 && len < sizeof(uart_buf)) {
+    HAL_Delay(200); //*TODO Remove this delay when sample timer has been implemented
     HAL_UART_Transmit(&huart1, (uint8_t*)uart_buf, len, HAL_MAX_DELAY);
     HAL_UART_Transmit(&huart2, (uint8_t*)uart_buf, len, HAL_MAX_DELAY);// Send data
   }
-
-  return AccelReadState;
 }
 
+#ifdef TEST // The following code will only be compiled if TEST is defined in the header file
+  void servo_test(void) {
+    if (HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin) == GPIO_PIN_RESET) {
+      // Center Platform
+      CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0°
+      CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0°
+      HAL_Delay(SERVO_TEST_DELAY);
+      adxl_read();
+
+      // Move X-Axis
+      CCR_X = PULSE_WIDTH_NEG_90 + PULSE_WIDTH_OFFSET_X; // -90° or 45° (From PULSE_WIDTH_MIN)
+      CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
+      HAL_Delay(SERVO_TEST_DELAY);
+      adxl_read();
+      CCR_X = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_X; // -45° or 90° (From PULSE_WIDTH_MIN)
+      CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
+      HAL_Delay(SERVO_TEST_DELAY);
+      adxl_read();
+      CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
+      CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
+      HAL_Delay(SERVO_TEST_DELAY);
+      adxl_read();
+      CCR_X = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_X; // +45° or 180° (From PULSE_WIDTH_MIN)
+      CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
+      HAL_Delay(SERVO_TEST_DELAY);
+      adxl_read();
+      CCR_X = PULSE_WIDTH_POS_90 + PULSE_WIDTH_OFFSET_X; // +90° or 225° (From PULSE_WIDTH_MIN)
+      CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
+      HAL_Delay(SERVO_TEST_DELAY);
+      adxl_read();
+
+      // Move Y-Axis
+      CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
+      CCR_Y = PULSE_WIDTH_NEG_90 + PULSE_WIDTH_OFFSET_Y; // -90° or 45° (From PULSE_WIDTH_MIN)
+      HAL_Delay(SERVO_TEST_DELAY);
+      adxl_read();
+      CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
+      CCR_Y = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_Y; // -45° or 90° (From PULSE_WIDTH_MIN)
+      HAL_Delay(SERVO_TEST_DELAY);
+      adxl_read();
+      CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
+      CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
+      HAL_Delay(SERVO_TEST_DELAY);
+      adxl_read();
+      CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
+      CCR_Y = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_Y; // +45° or 180° (From PULSE_WIDTH_MIN)
+      HAL_Delay(SERVO_TEST_DELAY);
+      adxl_read();
+      CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
+      CCR_Y = PULSE_WIDTH_POS_90 + PULSE_WIDTH_OFFSET_Y; // +90° or 225° (From PULSE_WIDTH_MIN)
+      HAL_Delay(SERVO_TEST_DELAY);
+      adxl_read();
+
+      // Move Both Axes
+      CCR_X = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_X; // -45°
+      CCR_Y = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_Y; // -45°
+      HAL_Delay(SERVO_TEST_DELAY);
+      adxl_read();
+      CCR_X = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_X; // +45°
+      CCR_Y = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_Y; // -45°
+      HAL_Delay(SERVO_TEST_DELAY);
+      adxl_read();
+      CCR_X = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_X; // +45°
+      CCR_Y = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_Y; // +45°
+      HAL_Delay(SERVO_TEST_DELAY);
+      adxl_read();
+      CCR_X = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_X; // -45°
+      CCR_Y = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_Y; // +45°
+      HAL_Delay(SERVO_TEST_DELAY);
+      adxl_read();
+      CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0°
+      CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0°
+      HAL_Delay(SERVO_TEST_DELAY);
+      adxl_read();
+
+      //! Alternate Servo Control Method
+      // Calculate CCR Values
+      // XValP = SERVO_NEUTRAL + (XPos + offset)*(1/2.7); // Calculate CCR value for desired +XPos
+      // XValN = SERVO_NEUTRAL + (-XPos + offset)*(1/2.7); // Calculate CCR value for desired -XPos
+      // YValP = SERVO_NEUTRAL + (YPos + offset)*(1/2.7); // Calculate CCR value for desired +YPos
+      // YValN = SERVO_NEUTRAL + (-YPos + offset)*(1/2.7); // Calculate CCR value for desired -YPos
+      // XValP2 = SERVO_NEUTRAL + (XPos/2 + offset)*(1/2.7); // Calculate CCR value for desired +XPos
+      // XValN2 = SERVO_NEUTRAL + (-XPos/2 + offset)*(1/2.7); // Calculate CCR value for desired -XPos
+      // YValP2 = SERVO_NEUTRAL + (YPos/2 + offset)*(1/2.7); // Calculate CCR value for desired +YPos
+      // YValN2 = SERVO_NEUTRAL + (-YPos/2 + offset)*(1/2.7); // Calculate CCR value for desired -YPos
+
+      // /* Move X Axis */
+      // CCR_X = XValN; // Move X-Axis to -XPos
+      // HAL_Delay(SERVO_TEST_DELAY);
+      // CCR_X = XValP; // Move X-Axis to +XPos
+      // HAL_Delay(SERVO_TEST_DELAY);
+      // CCR_X = SERVO_NEUTRAL; // Return X-Axis to Neutral
+      // HAL_Delay(SERVO_TEST_DELAY);
+
+      // /* Move Y Axis */
+      // CCR_Y = YValN; // Move Y-Axis to -YPos
+      // HAL_Delay(SERVO_TEST_DELAY);
+      // CCR_Y = YValP; // Move Y-Axis to +YPos
+      // HAL_Delay(SERVO_TEST_DELAY);
+      // CCR_Y = SERVO_NEUTRAL; // Return Y-Axis to Neutral
+      // HAL_Delay(SERVO_TEST_DELAY);
+
+      // /* Move Both Axes */
+      // CCR_X = XValN2; // Move X-Axis to -XPos
+      // CCR_Y = YValN2; // Move Y-Axis to -YPos
+      // HAL_Delay(SERVO_TEST_DELAY);
+      // CCR_X = XValP2; // Move X-Axis to -XPos
+      // CCR_Y = YValN2; // Move Y-Axis to -YPos
+      // HAL_Delay(SERVO_TEST_DELAY);
+      // CCR_X = XValP2; // Move X-Axis to -XPos
+      // CCR_Y = YValP2; // Move Y-Axis to -YPos
+      // HAL_Delay(SERVO_TEST_DELAY);
+      // CCR_X = XValN2; // Move X-Axis to +XPos
+      // CCR_Y = YValP2; // Move Y-Axis to +YPos
+      // HAL_Delay(SERVO_TEST_DELAY);
+      // CCR_X = SERVO_NEUTRAL; // Return X-Axis to Neutral
+      // CCR_Y = SERVO_NEUTRAL; // Return Y-Axis to Neutral
+      // HAL_Delay(SERVO_TEST_DELAY);
+    }
+  }
+#endif
+/* USER CODE END PFP */
+
+/* Private user code ---------------------------------------------------------*/
+/* USER CODE BEGIN 0 */
+
+/* Prototype Event Handlers */
+eSystemState startup_handler(void) {
+  // System startup processes
+  // Calibrate/center servos
+  return WAITING_STATE;
+}
+
+eSystemState waiting_handler(void) {
+  //*TODO Detect and decode all incoming serial instructions to determine the next state
+
+  // Else
+  return WAITING_STATE;
+}
+
+eSystemState define_profile_handler(void) {
+  // Allow user to define and store a test profile
+  return WAITING_STATE;
+}
+
+eSystemState run_profile_handler(void) {
+  // Run test profile
+  // Calls move servo function
+  return WAITING_STATE;
+}
 /* USER CODE END 0 */
 
 /**
@@ -171,29 +376,51 @@ int main(void)
   MX_USART2_UART_Init();
   MX_SPI3_Init();
   MX_USART1_UART_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
-  HAL_Delay(2000);
+
+  /* PWM Timers */
+  // Internal Clock (HCLK) = 100 MHz. If Prescaler = (100 - 1) & Max Timer Count = (20000 - 1), then f = 100 MHz / 100 = 1 MHz, T = 1 us, and PWM f = 1/(20000 * T) = 50 Hz
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
+  //*TODO Servo Control and Accelerometer Sample Timer (Basically the system clock)
+  // HAL_TIM_Base_Start(&htim1); // Internal Clock (APB2) = 84 MHz. If Prescaler = (84 - 1) & Max Timer Count = (2^16 - 1), then f = 84 MHz / 84 = 1 MHz, T = 1 us, and Max Delay = (2^16 - 1) * T = 65.535 ms
+
+  eSystemState eNextstate = STARTUP_STATE;
   adxl_init();
-  check_device_id();
+  adxl_id();
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
-  {
-    switch(eNextState)
-    {
-      case AccelReadState:
-        eNextState = runAcceleromter();
-      break;
-
-      default:
-        eNextState = runAcceleromter();
-      break;
-    }
+  while (1) {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    switch (eNextstate) {
+      case STARTUP_STATE:
+          eNextstate = startup_handler();
+          break;
+      case WAITING_STATE:
+          #ifdef TEST // The following code will only be compiled if TEST is defined in the header file
+            adxl_read();
+            servo_test();
+          #endif
+          
+          eNextstate = waiting_handler();
+          break;
+      case DEFINE_PROFILE_STATE:
+          eNextstate = define_profile_handler();
+          break;
+      case RUN_PROFILE_STATE:
+          eNextstate = run_profile_handler();
+          break;
+      
+      default:
+          eNextstate = startup_handler();
+          break;
+    }
   }
   /* USER CODE END 3 */
 }
@@ -278,6 +505,69 @@ static void MX_SPI3_Init(void)
   /* USER CODE BEGIN SPI3_Init 2 */
 
   /* USER CODE END SPI3_Init 2 */
+
+}
+
+/**
+  * @brief TIM2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM2_Init(void)
+{
+
+  /* USER CODE BEGIN TIM2_Init 0 */
+
+  /* USER CODE END TIM2_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  /* USER CODE BEGIN TIM2_Init 1 */
+
+  /* USER CODE END TIM2_Init 1 */
+  htim2.Instance = TIM2;
+  htim2.Init.Prescaler = 100 - 1;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim2.Init.Period = 20000 - 1;
+  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM2_Init 2 */
+
+  /* USER CODE END TIM2_Init 2 */
+  HAL_TIM_MspPostInit(&htim2);
 
 }
 

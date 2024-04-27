@@ -16,6 +16,7 @@
   *
   ******************************************************************************
   */
+#pragma once
 /* USER CODE END Header */
 
 /* Define to prevent recursive inclusion -------------------------------------*/
@@ -31,7 +32,9 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "stdio.h"
+#include "string.h"
+#include "stm32f4xx_hal.h"
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
@@ -49,6 +52,8 @@ extern "C" {
 
 /* USER CODE END EM */
 
+void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
+
 /* Exported functions prototypes ---------------------------------------------*/
 void Error_Handler(void);
 
@@ -59,6 +64,10 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define B1_Pin GPIO_PIN_13
 #define B1_GPIO_Port GPIOC
+#define PWM_X_Pin GPIO_PIN_0
+#define PWM_X_GPIO_Port GPIOA
+#define PWM_Y_Pin GPIO_PIN_1
+#define PWM_Y_GPIO_Port GPIOA
 #define USART_TX_Pin GPIO_PIN_2
 #define USART_TX_GPIO_Port GPIOA
 #define USART_RX_Pin GPIO_PIN_3
@@ -79,6 +88,10 @@ void Error_Handler(void);
 #define ADXL_SDA_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
+
+#define CCR_X htim2.Instance->CCR1
+#define CCR_Y htim2.Instance->CCR2
+#define TEST
 
 /* USER CODE END Private defines */
 
