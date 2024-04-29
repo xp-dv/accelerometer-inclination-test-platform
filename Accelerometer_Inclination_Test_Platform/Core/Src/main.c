@@ -137,7 +137,7 @@ void adxl_tx(uint8_t address, uint8_t value) {
   data[0] = address|0x40;  // multibyte write enabled
   data[1] = value;
   HAL_GPIO_WritePin(ADXL_CS_GPIO_Port, ADXL_CS_Pin, GPIO_PIN_RESET); // pull the cs pin low to enable the slave
-  HAL_SPI_Transmit(&hspi3, data, 2, 100);  // transmit the address and data
+  HAL_SPI_Transmit(&hspi3, data, 2, 100); // transmit the address and data
   HAL_GPIO_WritePin(ADXL_CS_GPIO_Port, ADXL_CS_Pin, GPIO_PIN_SET); // pull the cs pin high to disable the slave
 }
 
@@ -155,7 +155,6 @@ void adxl_init(void) {
   adxl_tx(0x31, 0x01);  // data_format range= +- 4g
   adxl_tx(0x2d, 0x00);  // reset all bits
   adxl_tx(0x2d, 0x08);  // power_cntl measure and wake up 8hz
-
 }
 
 void adxl_id(void) {
@@ -168,7 +167,6 @@ void adxl_id(void) {
   sprintf(debug_message, "Device ID: 0x%X\r\n", device_id);
   HAL_UART_Transmit(&huart1, (uint8_t*)debug_message, strlen(debug_message), 100);
   HAL_UART_Transmit(&huart2, (uint8_t*)debug_message, strlen(debug_message), 100);
-
 }
 
 void adxl_read(void) {
@@ -179,12 +177,15 @@ void adxl_read(void) {
   int16_t z_raw = (int16_t)((data_rec[5] << 8) | data_rec[4]);
 
   // Convert raw values to g's
-  xg = x_raw * 0.0078;
-  yg = y_raw * 0.0078;
-  zg = z_raw * 0.0078;
+  xg = x_raw * ADXL_SCALE_FACTOR;
+  yg = y_raw * ADXL_SCALE_FACTOR;
+  zg = z_raw * ADXL_SCALE_FACTOR;
+
+  //*TODO Convert to xyzg to angle
+  // x_ang = /*Equation*/;
 
   char uart_buf[64];
-  int len = snprintf(uart_buf, sizeof(uart_buf), "X=%0.2f, Y=%0.2f, Z=%0.2f\r\n", xg, yg, zg);
+  int len = snprintf(uart_buf, sizeof(uart_buf), "X=%0.2f, Y=%0.2f, Z=%0.2f\r\n", xg, yg, zg /*TODO Change these to angles*/);
   if (len > 0 && len < sizeof(uart_buf)) {
     HAL_Delay(200); //*TODO Remove this delay when sample timer has been implemented
     HAL_UART_Transmit(&huart1, (uint8_t*)uart_buf, len, HAL_MAX_DELAY);
@@ -199,72 +200,88 @@ void adxl_read(void) {
       CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0°
       CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0°
       HAL_Delay(SERVO_TEST_DELAY);
+      //*TODO Insert Serial Print Statement to label the btwn HAL_Delay() and adxl_read()
       adxl_read();
 
       // Move X-Axis
       CCR_X = PULSE_WIDTH_NEG_90 + PULSE_WIDTH_OFFSET_X; // -90° or 45° (From PULSE_WIDTH_MIN)
       CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
       HAL_Delay(SERVO_TEST_DELAY);
+      //*TODO Insert Serial Print Statement to label the btwn HAL_Delay() and adxl_read()
       adxl_read();
       CCR_X = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_X; // -45° or 90° (From PULSE_WIDTH_MIN)
       CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
       HAL_Delay(SERVO_TEST_DELAY);
+      //*TODO Insert Serial Print Statement to label the btwn HAL_Delay() and adxl_read()
       adxl_read();
       CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
       CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
       HAL_Delay(SERVO_TEST_DELAY);
+      //*TODO Insert Serial Print Statement to label the btwn HAL_Delay() and adxl_read()
       adxl_read();
       CCR_X = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_X; // +45° or 180° (From PULSE_WIDTH_MIN)
       CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
       HAL_Delay(SERVO_TEST_DELAY);
+      //*TODO Insert Serial Print Statement to label the btwn HAL_Delay() and adxl_read()
       adxl_read();
       CCR_X = PULSE_WIDTH_POS_90 + PULSE_WIDTH_OFFSET_X; // +90° or 225° (From PULSE_WIDTH_MIN)
       CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
       HAL_Delay(SERVO_TEST_DELAY);
+      //*TODO Insert Serial Print Statement to label the btwn HAL_Delay() and adxl_read()
       adxl_read();
 
       // Move Y-Axis
       CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
       CCR_Y = PULSE_WIDTH_NEG_90 + PULSE_WIDTH_OFFSET_Y; // -90° or 45° (From PULSE_WIDTH_MIN)
       HAL_Delay(SERVO_TEST_DELAY);
+      //*TODO Insert Serial Print Statement to label the btwn HAL_Delay() and adxl_read()
       adxl_read();
       CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
       CCR_Y = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_Y; // -45° or 90° (From PULSE_WIDTH_MIN)
       HAL_Delay(SERVO_TEST_DELAY);
+      //*TODO Insert Serial Print Statement to label the btwn HAL_Delay() and adxl_read()
       adxl_read();
       CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
       CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
       HAL_Delay(SERVO_TEST_DELAY);
+      //*TODO Insert Serial Print Statement to label the btwn HAL_Delay() and adxl_read()
       adxl_read();
       CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
       CCR_Y = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_Y; // +45° or 180° (From PULSE_WIDTH_MIN)
       HAL_Delay(SERVO_TEST_DELAY);
+      //*TODO Insert Serial Print Statement to label the btwn HAL_Delay() and adxl_read()
       adxl_read();
       CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
       CCR_Y = PULSE_WIDTH_POS_90 + PULSE_WIDTH_OFFSET_Y; // +90° or 225° (From PULSE_WIDTH_MIN)
       HAL_Delay(SERVO_TEST_DELAY);
+      //*TODO Insert Serial Print Statement to label the btwn HAL_Delay() and adxl_read()
       adxl_read();
 
       // Move Both Axes
       CCR_X = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_X; // -45°
       CCR_Y = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_Y; // -45°
       HAL_Delay(SERVO_TEST_DELAY);
+      //*TODO Insert Serial Print Statement to label the btwn HAL_Delay() and adxl_read()
+      adxl_read();
+      CCR_X = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_X; // +45°
+      CCR_Y = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_Y; // +45°
+      HAL_Delay(SERVO_TEST_DELAY);
+      //*TODO Insert Serial Print Statement to label the btwn HAL_Delay() and adxl_read()
       adxl_read();
       CCR_X = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_X; // +45°
       CCR_Y = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_Y; // -45°
       HAL_Delay(SERVO_TEST_DELAY);
-      adxl_read();
-      CCR_X = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_X; // +45°
-      CCR_Y = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_Y; // +45°
-      HAL_Delay(SERVO_TEST_DELAY);
+      //*TODO Insert Serial Print Statement to label the btwn HAL_Delay() and adxl_read()
       adxl_read();
       CCR_X = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_X; // -45°
       CCR_Y = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_Y; // +45°
       HAL_Delay(SERVO_TEST_DELAY);
+      //*TODO Insert Serial Print Statement to label the btwn HAL_Delay() and adxl_read()
       adxl_read();
       CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0°
       CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0°
       HAL_Delay(SERVO_TEST_DELAY);
+      //*TODO Insert Serial Print Statement to label the btwn HAL_Delay() and adxl_read()
       adxl_read();
 
       //! Alternate Servo Control Method
@@ -587,7 +604,7 @@ static void MX_USART1_UART_Init(void)
 
   /* USER CODE END USART1_Init 1 */
   huart1.Instance = USART1;
-  huart1.Init.BaudRate = 115200;
+  huart1.Init.BaudRate = BAUD_RATE;
   huart1.Init.WordLength = UART_WORDLENGTH_8B;
   huart1.Init.StopBits = UART_STOPBITS_1;
   huart1.Init.Parity = UART_PARITY_NONE;
@@ -620,7 +637,7 @@ static void MX_USART2_UART_Init(void)
 
   /* USER CODE END USART2_Init 1 */
   huart2.Instance = USART2;
-  huart2.Init.BaudRate = 115200;
+  huart2.Init.BaudRate = BAUD_RATE;
   huart2.Init.WordLength = UART_WORDLENGTH_8B;
   huart2.Init.StopBits = UART_STOPBITS_1;
   huart2.Init.Parity = UART_PARITY_NONE;

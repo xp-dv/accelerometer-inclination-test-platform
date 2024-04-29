@@ -35,17 +35,17 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   CONTENTS, READONLY, DEBUGGING, OCTETS
  15 .debug_rnglists 00000b59  00000000  00000000  0001a008  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 16 .debug_macro  000177b0  00000000  00000000  0001ab61  2**0
+ 16 .debug_macro  000177bc  00000000  00000000  0001ab61  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 17 .debug_line   0000ff44  00000000  00000000  00032311  2**0
+ 17 .debug_line   0000ff44  00000000  00000000  0003231d  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 18 .debug_str    00091ddd  00000000  00000000  00042255  2**0
+ 18 .debug_str    00091e08  00000000  00000000  00042261  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 19 .comment      00000043  00000000  00000000  000d4032  2**0
+ 19 .comment      00000043  00000000  00000000  000d4069  2**0
                   CONTENTS, READONLY
- 20 .debug_frame  00004f7c  00000000  00000000  000d4078  2**2
+ 20 .debug_frame  00004f7c  00000000  00000000  000d40ac  2**2
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 21 .debug_line_str 0000008a  00000000  00000000  000d8ff4  2**0
+ 21 .debug_line_str 0000008a  00000000  00000000  000d9028  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
 
 Disassembly of section .text:
@@ -1278,7 +1278,7 @@ void adxl_tx(uint8_t address, uint8_t value) {
  8000f68:	f44f 6180 	mov.w	r1, #1024	@ 0x400
  8000f6c:	4809      	ldr	r0, [pc, #36]	@ (8000f94 <adxl_tx+0x4c>)
  8000f6e:	f001 fa53 	bl	8002418 <HAL_GPIO_WritePin>
-  HAL_SPI_Transmit(&hspi3, data, 2, 100);  // transmit the address and data
+  HAL_SPI_Transmit(&hspi3, data, 2, 100); // transmit the address and data
  8000f72:	f107 010c 	add.w	r1, r7, #12
  8000f76:	2364      	movs	r3, #100	@ 0x64
  8000f78:	2202      	movs	r2, #2
@@ -1367,7 +1367,6 @@ void adxl_init(void) {
  800101c:	2108      	movs	r1, #8
  800101e:	202d      	movs	r0, #45	@ 0x2d
  8001020:	f7ff ff92 	bl	8000f48 <adxl_tx>
-
 }
  8001024:	bf00      	nop
  8001026:	bd80      	pop	{r7, pc}
@@ -1420,7 +1419,6 @@ void adxl_id(void) {
  8001074:	2364      	movs	r3, #100	@ 0x64
  8001076:	4806      	ldr	r0, [pc, #24]	@ (8001090 <adxl_id+0x68>)
  8001078:	f003 face 	bl	8004618 <HAL_UART_Transmit>
-
 }
  800107c:	bf00      	nop
  800107e:	3720      	adds	r7, #32
@@ -1474,7 +1472,7 @@ void adxl_read(void) {
  80010de:	f8a7 304a 	strh.w	r3, [r7, #74]	@ 0x4a
 
   // Convert raw values to g's
-  xg = x_raw * 0.0078;
+  xg = x_raw * ADXL_SCALE_FACTOR;
  80010e2:	f9b7 304e 	ldrsh.w	r3, [r7, #78]	@ 0x4e
  80010e6:	4618      	mov	r0, r3
  80010e8:	f7ff fa24 	bl	8000534 <__aeabi_i2d>
@@ -1489,7 +1487,7 @@ void adxl_read(void) {
  8001102:	4603      	mov	r3, r0
  8001104:	4a37      	ldr	r2, [pc, #220]	@ (80011e4 <adxl_read+0x14c>)
  8001106:	6013      	str	r3, [r2, #0]
-  yg = y_raw * 0.0078;
+  yg = y_raw * ADXL_SCALE_FACTOR;
  8001108:	f9b7 304c 	ldrsh.w	r3, [r7, #76]	@ 0x4c
  800110c:	4618      	mov	r0, r3
  800110e:	f7ff fa11 	bl	8000534 <__aeabi_i2d>
@@ -1504,7 +1502,7 @@ void adxl_read(void) {
  8001128:	4603      	mov	r3, r0
  800112a:	4a2f      	ldr	r2, [pc, #188]	@ (80011e8 <adxl_read+0x150>)
  800112c:	6013      	str	r3, [r2, #0]
-  zg = z_raw * 0.0078;
+  zg = z_raw * ADXL_SCALE_FACTOR;
  800112e:	f9b7 304a 	ldrsh.w	r3, [r7, #74]	@ 0x4a
  8001132:	4618      	mov	r0, r3
  8001134:	f7ff f9fe 	bl	8000534 <__aeabi_i2d>
@@ -1520,8 +1518,11 @@ void adxl_read(void) {
  8001150:	4a26      	ldr	r2, [pc, #152]	@ (80011ec <adxl_read+0x154>)
  8001152:	6013      	str	r3, [r2, #0]
 
+  //*TODO Convert to xyzg to angle
+  // x_ang = /*Equation*/;
+
   char uart_buf[64];
-  int len = snprintf(uart_buf, sizeof(uart_buf), "X=%0.2f, Y=%0.2f, Z=%0.2f\r\n", xg, yg, zg);
+  int len = snprintf(uart_buf, sizeof(uart_buf), "X=%0.2f, Y=%0.2f, Z=%0.2f\r\n", xg, yg, zg /*TODO Change these to angles*/);
  8001154:	4b23      	ldr	r3, [pc, #140]	@ (80011e4 <adxl_read+0x14c>)
  8001156:	681b      	ldr	r3, [r3, #0]
  8001158:	4618      	mov	r0, r3
@@ -1580,8 +1581,8 @@ void adxl_read(void) {
  80011ce:	e8bd 83b0 	ldmia.w	sp!, {r4, r5, r7, r8, r9, pc}
  80011d2:	bf00      	nop
  80011d4:	f3af 8000 	nop.w
- 80011d8:	8e8a71de 	.word	0x8e8a71de
- 80011dc:	3f7ff2e4 	.word	0x3f7ff2e4
+ 80011d8:	c9afe1da 	.word	0xc9afe1da
+ 80011dc:	3f70f51a 	.word	0x3f70f51a
  80011e0:	20000320 	.word	0x20000320
  80011e4:	20000328 	.word	0x20000328
  80011e8:	2000032c 	.word	0x2000032c
@@ -1617,6 +1618,7 @@ void adxl_read(void) {
       HAL_Delay(SERVO_TEST_DELAY);
  8001226:	f640 30b8 	movw	r0, #3000	@ 0xbb8
  800122a:	f000 fe4f 	bl	8001ecc <HAL_Delay>
+      //*TODO Insert Serial Print Statement to label the btwn HAL_Delay() and adxl_read()
       adxl_read();
  800122e:	f7ff ff33 	bl	8001098 <adxl_read>
 
@@ -1634,6 +1636,7 @@ void adxl_read(void) {
       HAL_Delay(SERVO_TEST_DELAY);
  8001246:	f640 30b8 	movw	r0, #3000	@ 0xbb8
  800124a:	f000 fe3f 	bl	8001ecc <HAL_Delay>
+      //*TODO Insert Serial Print Statement to label the btwn HAL_Delay() and adxl_read()
       adxl_read();
  800124e:	f7ff ff23 	bl	8001098 <adxl_read>
       CCR_X = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_X; // -45° or 90° (From PULSE_WIDTH_MIN)
@@ -1649,6 +1652,7 @@ void adxl_read(void) {
       HAL_Delay(SERVO_TEST_DELAY);
  8001266:	f640 30b8 	movw	r0, #3000	@ 0xbb8
  800126a:	f000 fe2f 	bl	8001ecc <HAL_Delay>
+      //*TODO Insert Serial Print Statement to label the btwn HAL_Delay() and adxl_read()
       adxl_read();
  800126e:	f7ff ff13 	bl	8001098 <adxl_read>
       CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
@@ -1664,6 +1668,7 @@ void adxl_read(void) {
       HAL_Delay(SERVO_TEST_DELAY);
  8001286:	f640 30b8 	movw	r0, #3000	@ 0xbb8
  800128a:	f000 fe1f 	bl	8001ecc <HAL_Delay>
+      //*TODO Insert Serial Print Statement to label the btwn HAL_Delay() and adxl_read()
       adxl_read();
  800128e:	f7ff ff03 	bl	8001098 <adxl_read>
       CCR_X = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_X; // +45° or 180° (From PULSE_WIDTH_MIN)
@@ -1679,6 +1684,7 @@ void adxl_read(void) {
       HAL_Delay(SERVO_TEST_DELAY);
  80012a6:	f640 30b8 	movw	r0, #3000	@ 0xbb8
  80012aa:	f000 fe0f 	bl	8001ecc <HAL_Delay>
+      //*TODO Insert Serial Print Statement to label the btwn HAL_Delay() and adxl_read()
       adxl_read();
  80012ae:	f7ff fef3 	bl	8001098 <adxl_read>
       CCR_X = PULSE_WIDTH_POS_90 + PULSE_WIDTH_OFFSET_X; // +90° or 225° (From PULSE_WIDTH_MIN)
@@ -1694,6 +1700,7 @@ void adxl_read(void) {
       HAL_Delay(SERVO_TEST_DELAY);
  80012c6:	f640 30b8 	movw	r0, #3000	@ 0xbb8
  80012ca:	f000 fdff 	bl	8001ecc <HAL_Delay>
+      //*TODO Insert Serial Print Statement to label the btwn HAL_Delay() and adxl_read()
       adxl_read();
  80012ce:	f7ff fee3 	bl	8001098 <adxl_read>
 
@@ -1711,6 +1718,7 @@ void adxl_read(void) {
       HAL_Delay(SERVO_TEST_DELAY);
  80012e6:	f640 30b8 	movw	r0, #3000	@ 0xbb8
  80012ea:	f000 fdef 	bl	8001ecc <HAL_Delay>
+      //*TODO Insert Serial Print Statement to label the btwn HAL_Delay() and adxl_read()
       adxl_read();
  80012ee:	f7ff fed3 	bl	8001098 <adxl_read>
       CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
@@ -1726,6 +1734,7 @@ void adxl_read(void) {
       HAL_Delay(SERVO_TEST_DELAY);
  8001306:	f640 30b8 	movw	r0, #3000	@ 0xbb8
  800130a:	f000 fddf 	bl	8001ecc <HAL_Delay>
+      //*TODO Insert Serial Print Statement to label the btwn HAL_Delay() and adxl_read()
       adxl_read();
  800130e:	f7ff fec3 	bl	8001098 <adxl_read>
       CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
@@ -1741,6 +1750,7 @@ void adxl_read(void) {
       HAL_Delay(SERVO_TEST_DELAY);
  8001326:	f640 30b8 	movw	r0, #3000	@ 0xbb8
  800132a:	f000 fdcf 	bl	8001ecc <HAL_Delay>
+      //*TODO Insert Serial Print Statement to label the btwn HAL_Delay() and adxl_read()
       adxl_read();
  800132e:	f7ff feb3 	bl	8001098 <adxl_read>
       CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
@@ -1756,6 +1766,7 @@ void adxl_read(void) {
       HAL_Delay(SERVO_TEST_DELAY);
  8001346:	f640 30b8 	movw	r0, #3000	@ 0xbb8
  800134a:	f000 fdbf 	bl	8001ecc <HAL_Delay>
+      //*TODO Insert Serial Print Statement to label the btwn HAL_Delay() and adxl_read()
       adxl_read();
  800134e:	f7ff fea3 	bl	8001098 <adxl_read>
       CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
@@ -1771,6 +1782,7 @@ void adxl_read(void) {
       HAL_Delay(SERVO_TEST_DELAY);
  8001366:	f640 30b8 	movw	r0, #3000	@ 0xbb8
  800136a:	f000 fdaf 	bl	8001ecc <HAL_Delay>
+      //*TODO Insert Serial Print Statement to label the btwn HAL_Delay() and adxl_read()
       adxl_read();
  800136e:	f7ff fe93 	bl	8001098 <adxl_read>
 
@@ -1788,6 +1800,7 @@ void adxl_read(void) {
       HAL_Delay(SERVO_TEST_DELAY);
  8001386:	f640 30b8 	movw	r0, #3000	@ 0xbb8
  800138a:	f000 fd9f 	bl	8001ecc <HAL_Delay>
+      //*TODO Insert Serial Print Statement to label the btwn HAL_Delay() and adxl_read()
       adxl_read();
  800138e:	f7ff fe83 	bl	8001098 <adxl_read>
       CCR_X = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_X; // +45°
@@ -1795,14 +1808,15 @@ void adxl_read(void) {
  8001394:	681b      	ldr	r3, [r3, #0]
  8001396:	f240 721a 	movw	r2, #1818	@ 0x71a
  800139a:	635a      	str	r2, [r3, #52]	@ 0x34
-      CCR_Y = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_Y; // -45°
+      CCR_Y = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_Y; // +45°
  800139c:	4b1f      	ldr	r3, [pc, #124]	@ (800141c <servo_test+0x220>)
  800139e:	681b      	ldr	r3, [r3, #0]
- 80013a0:	f240 4276 	movw	r2, #1142	@ 0x476
+ 80013a0:	f44f 62e2 	mov.w	r2, #1808	@ 0x710
  80013a4:	639a      	str	r2, [r3, #56]	@ 0x38
       HAL_Delay(SERVO_TEST_DELAY);
  80013a6:	f640 30b8 	movw	r0, #3000	@ 0xbb8
  80013aa:	f000 fd8f 	bl	8001ecc <HAL_Delay>
+      //*TODO Insert Serial Print Statement to label the btwn HAL_Delay() and adxl_read()
       adxl_read();
  80013ae:	f7ff fe73 	bl	8001098 <adxl_read>
       CCR_X = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_X; // +45°
@@ -1810,14 +1824,15 @@ void adxl_read(void) {
  80013b4:	681b      	ldr	r3, [r3, #0]
  80013b6:	f240 721a 	movw	r2, #1818	@ 0x71a
  80013ba:	635a      	str	r2, [r3, #52]	@ 0x34
-      CCR_Y = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_Y; // +45°
+      CCR_Y = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_Y; // -45°
  80013bc:	4b17      	ldr	r3, [pc, #92]	@ (800141c <servo_test+0x220>)
  80013be:	681b      	ldr	r3, [r3, #0]
- 80013c0:	f44f 62e2 	mov.w	r2, #1808	@ 0x710
+ 80013c0:	f240 4276 	movw	r2, #1142	@ 0x476
  80013c4:	639a      	str	r2, [r3, #56]	@ 0x38
       HAL_Delay(SERVO_TEST_DELAY);
  80013c6:	f640 30b8 	movw	r0, #3000	@ 0xbb8
  80013ca:	f000 fd7f 	bl	8001ecc <HAL_Delay>
+      //*TODO Insert Serial Print Statement to label the btwn HAL_Delay() and adxl_read()
       adxl_read();
  80013ce:	f7ff fe63 	bl	8001098 <adxl_read>
       CCR_X = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_X; // -45°
@@ -1833,6 +1848,7 @@ void adxl_read(void) {
       HAL_Delay(SERVO_TEST_DELAY);
  80013e6:	f640 30b8 	movw	r0, #3000	@ 0xbb8
  80013ea:	f000 fd6f 	bl	8001ecc <HAL_Delay>
+      //*TODO Insert Serial Print Statement to label the btwn HAL_Delay() and adxl_read()
       adxl_read();
  80013ee:	f7ff fe53 	bl	8001098 <adxl_read>
       CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0°
@@ -1848,6 +1864,7 @@ void adxl_read(void) {
       HAL_Delay(SERVO_TEST_DELAY);
  8001406:	f640 30b8 	movw	r0, #3000	@ 0xbb8
  800140a:	f000 fd5f 	bl	8001ecc <HAL_Delay>
+      //*TODO Insert Serial Print Statement to label the btwn HAL_Delay() and adxl_read()
       adxl_read();
  800140e:	f7ff fe43 	bl	8001098 <adxl_read>
       // HAL_Delay(SERVO_TEST_DELAY);
@@ -1965,7 +1982,6 @@ int main(void)
  800147a:	f000 f95f 	bl	800173c <MX_USART1_UART_Init>
   MX_TIM2_Init();
  800147e:	f000 f8dd 	bl	800163c <MX_TIM2_Init>
-  
   /* USER CODE BEGIN 2 */
 
   /* PWM Timers */
@@ -2454,7 +2470,7 @@ static void MX_USART1_UART_Init(void)
  8001740:	4b11      	ldr	r3, [pc, #68]	@ (8001788 <MX_USART1_UART_Init+0x4c>)
  8001742:	4a12      	ldr	r2, [pc, #72]	@ (800178c <MX_USART1_UART_Init+0x50>)
  8001744:	601a      	str	r2, [r3, #0]
-  huart1.Init.BaudRate = 115200;
+  huart1.Init.BaudRate = BAUD_RATE;
  8001746:	4b10      	ldr	r3, [pc, #64]	@ (8001788 <MX_USART1_UART_Init+0x4c>)
  8001748:	f44f 32e1 	mov.w	r2, #115200	@ 0x1c200
  800174c:	605a      	str	r2, [r3, #4]
@@ -2521,7 +2537,7 @@ static void MX_USART2_UART_Init(void)
  8001794:	4b11      	ldr	r3, [pc, #68]	@ (80017dc <MX_USART2_UART_Init+0x4c>)
  8001796:	4a12      	ldr	r2, [pc, #72]	@ (80017e0 <MX_USART2_UART_Init+0x50>)
  8001798:	601a      	str	r2, [r3, #0]
-  huart2.Init.BaudRate = 115200;
+  huart2.Init.BaudRate = BAUD_RATE;
  800179a:	4b10      	ldr	r3, [pc, #64]	@ (80017dc <MX_USART2_UART_Init+0x4c>)
  800179c:	f44f 32e1 	mov.w	r2, #115200	@ 0x1c200
  80017a0:	605a      	str	r2, [r3, #4]

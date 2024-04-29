@@ -89,8 +89,10 @@ void Error_Handler(void);
 
 /* USER CODE BEGIN Private defines */
 
+#define BAUD_RATE 115200
 #define CCR_X htim2.Instance->CCR1
 #define CCR_Y htim2.Instance->CCR2
+#define ADXL_SCALE_FACTOR 0.00414
 #define TEST
 
 /* USER CODE END Private defines */
