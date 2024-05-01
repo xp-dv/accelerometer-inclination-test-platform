@@ -3411,28 +3411,28 @@ LOAD C:/ST/STM32CubeIDE_1.11.2/STM32CubeIDE/plugins/com.st.stm32cube.ide.mcu.ext
  *(.bss)
  .bss           0x20000014       0x1c C:/ST/STM32CubeIDE_1.11.2/STM32CubeIDE/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.12.3.rel1.win32_1.0.100.202403111256/tools/bin/../lib/gcc/arm-none-eabi/12.3.1/thumb/v7e-m+fp/hard/crtbegin.o
  *(.bss*)
- .bss.offset    0x20000030        0x4 ./Core/Src/main.o
-                0x20000030                offset
- .bss.XValP     0x20000034        0x4 ./Core/Src/main.o
-                0x20000034                XValP
- .bss.XValN     0x20000038        0x4 ./Core/Src/main.o
-                0x20000038                XValN
- .bss.YValP     0x2000003c        0x4 ./Core/Src/main.o
-                0x2000003c                YValP
- .bss.YValN     0x20000040        0x4 ./Core/Src/main.o
-                0x20000040                YValN
- .bss.XValP2    0x20000044        0x4 ./Core/Src/main.o
-                0x20000044                XValP2
- .bss.XValN2    0x20000048        0x4 ./Core/Src/main.o
-                0x20000048                XValN2
- .bss.YValP2    0x2000004c        0x4 ./Core/Src/main.o
-                0x2000004c                YValP2
- .bss.YValN2    0x20000050        0x4 ./Core/Src/main.o
-                0x20000050                YValN2
- .bss.htim2     0x20000054       0x48 ./Core/Src/main.o
-                0x20000054                htim2
- .bss.huart2    0x2000009c       0x48 ./Core/Src/main.o
-                0x2000009c                huart2
+ .bss.htim2     0x20000030       0x48 ./Core/Src/main.o
+                0x20000030                htim2
+ .bss.huart2    0x20000078       0x48 ./Core/Src/main.o
+                0x20000078                huart2
+ .bss.offset    0x200000c0        0x4 ./Core/Src/main.o
+                0x200000c0                offset
+ .bss.XValP     0x200000c4        0x4 ./Core/Src/main.o
+                0x200000c4                XValP
+ .bss.XValN     0x200000c8        0x4 ./Core/Src/main.o
+                0x200000c8                XValN
+ .bss.YValP     0x200000cc        0x4 ./Core/Src/main.o
+                0x200000cc                YValP
+ .bss.YValN     0x200000d0        0x4 ./Core/Src/main.o
+                0x200000d0                YValN
+ .bss.XValP2    0x200000d4        0x4 ./Core/Src/main.o
+                0x200000d4                XValP2
+ .bss.XValN2    0x200000d8        0x4 ./Core/Src/main.o
+                0x200000d8                XValN2
+ .bss.YValP2    0x200000dc        0x4 ./Core/Src/main.o
+                0x200000dc                YValP2
+ .bss.YValN2    0x200000e0        0x4 ./Core/Src/main.o
+                0x200000e0                YValN2
  .bss.uwTick    0x200000e4        0x4 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal.o
                 0x200000e4                uwTick
  *(COMMON)

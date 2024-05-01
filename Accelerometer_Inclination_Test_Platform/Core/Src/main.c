@@ -21,7 +21,9 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <stdio.h>
+#include <string.h>
+#include <math.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -73,20 +75,14 @@ UART_HandleTypeDef huart2;
 /* USER CODE BEGIN PV */
 // Accelerometer Read
 uint8_t data_rec[6]; // The 6 bytes of ADXL data are stored here
-uint16_t x, y, z;
 float xg, yg, zg;
+float x_ang, y_ang, z_ang; //*TODO convert g's to angle of rotation about each axis
 
 // Servo Motor Control
 float pos_x;
 float pos_y;
 float pos_x_last;
 float pos_y_last;
-
-//*TODO Finish move_servo()
-// int i = 0;
-// int posnum;
-// int poslist;
-// int loopnum;
 
 #ifdef TEST // The following code will only be compiled if TEST is defined in the header file
   //! Alternate Servo Control Method
@@ -108,33 +104,10 @@ static void MX_SPI3_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
-int move_servo(float pos_x, float pos_y, int v_x, int v_y) {
-  //*TODO Incremental position movement. Call the read accelerometer function every time the position is updated
-  //*TODO Convert x and y-axis angular position to pulse width position
-  //! For now pos_x, pos_y, v_x, and v_y are in units of 1 ms pulse width
-  int pos_x_pw = pos_x;
-  int pos_y_pw = pos_y;
-  int sample_rate = 1; // 1 ms
-  v_x = pos_x - pos_x_last;
-  v_y = pos_y - pos_y_last;
-  for (pos_x_pw = pos_x_last, pos_y_pw = pos_y_last; pos_x_pw != pos_x_last && pos_y_pw != pos_y_last; pos_x_pw += v_x, pos_y_pw += v_y) { //*TODO Conditional statements not functional in case velocity isn't an exact multiple
-    adxl_read();
-    CCR_X = pos_x_pw;
-    CCR_X = pos_y_pw;
-    delay_us(sample_rate);
-  }
-  //! Alternate Servo Control Method
-  // CCR = 75 + (angle)(1/2.7)
-  // 1 degree = 2.7 CCR
-  // CCR1 = 75 + pos_x*(1/2.7); // Move x-axis servo
-
-  // CCR2 = 75 + pos_y*(1/2.7); // Move y-axis servo
-  // HAL_Delay(1000); // Wait before moving again
-}
 
 void adxl_tx(uint8_t address, uint8_t value) {
   uint8_t data[2];
-  data[0] = address|0x40;  // multibyte write enabled
+  data[0] = address | 0x40;  // multibyte write enabled
   data[1] = value;
   HAL_GPIO_WritePin(ADXL_CS_GPIO_Port, ADXL_CS_Pin, GPIO_PIN_RESET); // pull the cs pin low to enable the slave
   HAL_SPI_Transmit(&hspi3, data, 2, 100); // transmit the address and data
@@ -180,18 +153,40 @@ void adxl_read(void) {
   xg = x_raw * ADXL_SCALE_FACTOR;
   yg = y_raw * ADXL_SCALE_FACTOR;
   zg = z_raw * ADXL_SCALE_FACTOR;
-
-  //*TODO Convert to xyzg to angle
-  // x_ang = /*Equation*/;
+  //*TODO Convert g's to angle of rotation about each axis
 
   char uart_buf[64];
   int len = snprintf(uart_buf, sizeof(uart_buf), "X=%0.2f, Y=%0.2f, Z=%0.2f\r\n", xg, yg, zg /*TODO Change these to angles*/);
   if (len > 0 && len < sizeof(uart_buf)) {
     HAL_Delay(200); //*TODO Remove this delay when sample timer has been implemented
     HAL_UART_Transmit(&huart1, (uint8_t*)uart_buf, len, HAL_MAX_DELAY);
-    HAL_UART_Transmit(&huart2, (uint8_t*)uart_buf, len, HAL_MAX_DELAY);// Send data
+    HAL_UART_Transmit(&huart2, (uint8_t*)uart_buf, len, HAL_MAX_DELAY); // Send data
   }
 }
+
+//*TODO Incremental position movement. Call the read accelerometer function every time the position is updated
+//*TODO Convert x and y-axis angular position to pulse width position
+//! For now pos_x, pos_y, v_x, and v_y are in units of 1 ms pulse width
+// int move_servo(float pos_x, float pos_y, int v_x, int v_y) {
+//   int pos_x_pw = pos_x;
+//   int pos_y_pw = pos_y;
+//   int sample_rate = 1; // 1 ms
+//   v_x = pos_x - pos_x_last;
+//   v_y = pos_y - pos_y_last;
+//   for (pos_x_pw = pos_x_last, pos_y_pw = pos_y_last; pos_x_pw != pos_x_last && pos_y_pw != pos_y_last; pos_x_pw += v_x, pos_y_pw += v_y) { //*TODO Conditional statements not functional in case velocity isn't an exact multiple
+//     adxl_read();
+//     CCR_X = pos_x_pw;
+//     CCR_X = pos_y_pw;
+//     delay_us(sample_rate);
+//   }
+//   //! Alternate Servo Control Method
+//   // CCR = 75 + (angle)(1/2.7)
+//   // 1 degree = 2.7 CCR
+//   // CCR1 = 75 + pos_x*(1/2.7); // Move x-axis servo
+
+//   // CCR2 = 75 + pos_y*(1/2.7); // Move y-axis servo
+//   // HAL_Delay(1000); // Wait before moving again
+// }
 
 #ifdef TEST // The following code will only be compiled if TEST is defined in the header file
   void servo_test(void) {

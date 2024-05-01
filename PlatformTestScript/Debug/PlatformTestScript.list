@@ -1157,7 +1157,7 @@ int main(void)
  8000dc4:	4a40      	ldr	r2, [pc, #256]	@ (8000ec8 <main+0x390>)
  8000dc6:	6013      	str	r3, [r2, #0]
 
-    /* Move X Axis */
+    /* Move X-Axis */
     htim2.Instance->CCR_X = XValN; // Move X-Axis to -XPos
  8000dc8:	4b38      	ldr	r3, [pc, #224]	@ (8000eac <main+0x374>)
  8000dca:	edd3 7a00 	vldr	s15, [r3]
@@ -1189,7 +1189,7 @@ int main(void)
  8000e08:	f640 30b8 	movw	r0, #3000	@ 0xbb8
  8000e0c:	f000 fc12 	bl	8001634 <HAL_Delay>
 
-    /* Move Y Axis */
+    /* Move Y-Axis */
     htim2.Instance->CCR_Y = YValN; // Move Y-Axis to -YPos
  8000e10:	4b29      	ldr	r3, [pc, #164]	@ (8000eb8 <main+0x380>)
  8000e12:	edd3 7a00 	vldr	s15, [r3]
@@ -1245,19 +1245,19 @@ int main(void)
  8000e8c:	3fd7b425 	.word	0x3fd7b425
  8000e90:	00000000 	.word	0x00000000
  8000e94:	4052e000 	.word	0x4052e000
- 8000e98:	20000054 	.word	0x20000054
+ 8000e98:	20000030 	.word	0x20000030
  8000e9c:	40020800 	.word	0x40020800
  8000ea0:	20000000 	.word	0x20000000
- 8000ea4:	20000030 	.word	0x20000030
- 8000ea8:	20000034 	.word	0x20000034
- 8000eac:	20000038 	.word	0x20000038
+ 8000ea4:	200000c0 	.word	0x200000c0
+ 8000ea8:	200000c4 	.word	0x200000c4
+ 8000eac:	200000c8 	.word	0x200000c8
  8000eb0:	20000004 	.word	0x20000004
- 8000eb4:	2000003c 	.word	0x2000003c
- 8000eb8:	20000040 	.word	0x20000040
- 8000ebc:	20000044 	.word	0x20000044
- 8000ec0:	20000048 	.word	0x20000048
- 8000ec4:	2000004c 	.word	0x2000004c
- 8000ec8:	20000050 	.word	0x20000050
+ 8000eb4:	200000cc 	.word	0x200000cc
+ 8000eb8:	200000d0 	.word	0x200000d0
+ 8000ebc:	200000d4 	.word	0x200000d4
+ 8000ec0:	200000d8 	.word	0x200000d8
+ 8000ec4:	200000dc 	.word	0x200000dc
+ 8000ec8:	200000e0 	.word	0x200000e0
     HAL_Delay(3000);
  8000ecc:	f640 30b8 	movw	r0, #3000	@ 0xbb8
  8000ed0:	f000 fbb0 	bl	8001634 <HAL_Delay>
@@ -1334,11 +1334,11 @@ int main(void)
 	  if (HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin) == GPIO_PIN_RESET) {
  8000f7c:	e5f0      	b.n	8000b60 <main+0x28>
  8000f7e:	bf00      	nop
- 8000f80:	20000044 	.word	0x20000044
- 8000f84:	20000054 	.word	0x20000054
- 8000f88:	20000050 	.word	0x20000050
- 8000f8c:	2000004c 	.word	0x2000004c
- 8000f90:	20000048 	.word	0x20000048
+ 8000f80:	200000d4 	.word	0x200000d4
+ 8000f84:	20000030 	.word	0x20000030
+ 8000f88:	200000e0 	.word	0x200000e0
+ 8000f8c:	200000dc 	.word	0x200000dc
+ 8000f90:	200000d8 	.word	0x200000d8
 
 08000f94 <SystemClock_Config>:
 /**
@@ -1644,7 +1644,7 @@ static void MX_TIM2_Init(void)
  800115e:	46bd      	mov	sp, r7
  8001160:	bd80      	pop	{r7, pc}
  8001162:	bf00      	nop
- 8001164:	20000054 	.word	0x20000054
+ 8001164:	20000030 	.word	0x20000030
 
 08001168 <MX_USART2_UART_Init>:
   * @brief USART2 Initialization Function
@@ -1710,7 +1710,7 @@ static void MX_USART2_UART_Init(void)
  80011ae:	bf00      	nop
  80011b0:	bd80      	pop	{r7, pc}
  80011b2:	bf00      	nop
- 80011b4:	2000009c 	.word	0x2000009c
+ 80011b4:	20000078 	.word	0x20000078
  80011b8:	40004400 	.word	0x40004400
 
 080011bc <MX_GPIO_Init>:
@@ -2348,7 +2348,7 @@ void TIM2_IRQHandler(void)
  80014ba:	bf00      	nop
  80014bc:	bd80      	pop	{r7, pc}
  80014be:	bf00      	nop
- 80014c0:	20000054 	.word	0x20000054
+ 80014c0:	20000030 	.word	0x20000030
 
 080014c4 <USART2_IRQHandler>:
 
@@ -2372,7 +2372,7 @@ void USART2_IRQHandler(void)
  80014ce:	bf00      	nop
  80014d0:	bd80      	pop	{r7, pc}
  80014d2:	bf00      	nop
- 80014d4:	2000009c 	.word	0x2000009c
+ 80014d4:	20000078 	.word	0x20000078
 
 080014d8 <SystemInit>:
   *         configuration.
