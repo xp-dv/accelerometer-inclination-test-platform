@@ -76,7 +76,7 @@ UART_HandleTypeDef huart2;
 // Accelerometer Read
 uint8_t data_rec[6]; // The 6 bytes of ADXL data are stored here
 float xg, yg, zg;
-float x_ang, y_ang, z_ang; //*TODO convert g's to angle of rotation about each axis
+float x_ang, y_ang, z_ang;
 
 // Servo Motor Control
 float pos_x;
@@ -153,11 +153,20 @@ void adxl_read(void) {
   xg = x_raw * ADXL_SCALE_FACTOR;
   yg = y_raw * ADXL_SCALE_FACTOR;
   zg = z_raw * ADXL_SCALE_FACTOR;
-  //*TODO Convert g's to angle of rotation about each axis
 
-  char uart_buf[64];
-  int len = snprintf(uart_buf, sizeof(uart_buf), "X=%0.2f, Y=%0.2f, Z=%0.2f\r\n", xg, yg, zg /*TODO Change these to angles*/);
-  if (len > 0 && len < sizeof(uart_buf)) {
+  x_ang =  atan2f(yg, sqrtf(xg * xg + zg * zg));
+  y_ang = atan2f(-xg, sqrtf(yg * yg + zg * zg));
+  z_ang = atan2f(sqrtf(xg * xg + yg * yg), zg);
+
+   x_ang = x_ang* (180.0f / M_PI);
+   y_ang = y_ang* (180.0f / M_PI);
+   z_ang = z_ang* (180.0f / M_PI);
+
+
+
+   char uart_buf[64];
+   int len = snprintf(uart_buf, sizeof(uart_buf), "X_Angle=%0.2f, Y_Angle=%0.2f, Z_Angle=%0.2f\r\n", x_ang, y_ang, z_ang /*TODO Change these to angles*/);
+   if (len > 0 && len < sizeof(uart_buf)) {
     HAL_Delay(200); //*TODO Remove this delay when sample timer has been implemented
     HAL_UART_Transmit(&huart1, (uint8_t*)uart_buf, len, HAL_MAX_DELAY);
     HAL_UART_Transmit(&huart2, (uint8_t*)uart_buf, len, HAL_MAX_DELAY); // Send data
