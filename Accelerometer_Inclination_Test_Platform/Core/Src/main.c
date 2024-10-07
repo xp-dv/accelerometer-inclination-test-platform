@@ -30,12 +30,11 @@
 /* USER CODE BEGIN PTD */
 typedef enum {
   STARTUP_STATE,
-  WAITING_STATE,
-  DEFINE_PROFILE_STATE,
-  SELECT_PROFILE_STATE,
-  RUN_PROFILE_STATE,
-  MOVE_SERVO_STATE,
-} eSystemState;
+  WAIT_FOR_INSTRUCTION,
+  SEQUENCE_EDIT,
+  RUN_SEQUENCE,
+  MOVE_PLATFORM
+} system_state_t;
 
 /* USER CODE END PTD */
 
@@ -104,6 +103,28 @@ static void MX_SPI3_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
+void instruction_handler(void) {
+  int status = 1; // Assume failure
+
+  // TODO: replace with real instructions defined in a typedef
+  // instruction_t instruction = uart_rx();
+  // switch (instruction) {
+  //   case INSTRUCTION:
+  //     instruction_handler();
+  //     break;
+  // }
+}
+
+int move_platform(int x_ang, int y_ang, int speed) {
+  // TODO: current_position = adxl_read();
+  // TODO: PID_Update();
+  // TODO: Function to translate x_ang, y_ang, & speed from degrees to CCR value
+  // TODO: Set CCR values to final calculated position
+}
+
+int run_setpoint(int* setpoint_i) {
+ // TODO: Same as move_platform, but the setpoint information must be parsed from setpoints[]
+}
 
 void adxl_tx(uint8_t address, uint8_t value) {
   uint8_t data[2];
@@ -356,28 +377,28 @@ void adxl_read(void) {
 /* USER CODE BEGIN 0 */
 
 /* Prototype Event Handlers */
-eSystemState startup_handler(void) {
+system_state_t startup_handler(void) {
   // System startup processes
   // Calibrate/center servos
-  return WAITING_STATE;
+  return WAIT_FOR_INSTRUCTION;
 }
 
-eSystemState waiting_handler(void) {
+system_state_t waiting_handler(void) {
   //*TODO Detect and decode all incoming serial instructions to determine the next state
 
   // Else
-  return WAITING_STATE;
+  return WAIT_FOR_INSTRUCTION;
 }
 
-eSystemState define_profile_handler(void) {
-  // Allow user to define and store a test profile
-  return WAITING_STATE;
+system_state_t edit_sequence_handler(void) {
+  // Allow user to define and store a test setpoint
+  return WAIT_FOR_INSTRUCTION;
 }
 
-eSystemState run_profile_handler(void) {
-  // Run test profile
+system_state_t run_setpoint_handler(void) {
+  // Run test setpoint
   // Calls move servo function
-  return WAITING_STATE;
+  return WAIT_FOR_INSTRUCTION;
 }
 /* USER CODE END 0 */
 
@@ -423,7 +444,7 @@ int main(void)
   //*TODO Servo Control and Accelerometer Sample Timer (Basically the system clock)
   // HAL_TIM_Base_Start(&htim1); // Internal Clock (APB2) = 84 MHz. If Prescaler = (84 - 1) & Max Timer Count = (2^16 - 1), then f = 84 MHz / 84 = 1 MHz, T = 1 us, and Max Delay = (2^16 - 1) * T = 65.535 ms
 
-  eSystemState eNextstate = STARTUP_STATE;
+  system_state_t next_state_e = STARTUP_STATE;
   adxl_init();
   adxl_id();
 
@@ -435,27 +456,27 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    switch (eNextstate) {
+    switch (next_state_e) {
       case STARTUP_STATE:
-          eNextstate = startup_handler();
-          break;
-      case WAITING_STATE:
-          #ifdef TEST // The following code will only be compiled if TEST is defined in the header file
-            servo_test();
-          #endif
+        next_state_e = startup_handler();
+        break;
+      case WAIT_FOR_INSTRUCTION:
+        #ifdef TEST // The following code will only be compiled if TEST is defined in the header file
+          servo_test();
+        #endif
           
-          eNextstate = waiting_handler();
-          break;
-      case DEFINE_PROFILE_STATE:
-          eNextstate = define_profile_handler();
-          break;
-      case RUN_PROFILE_STATE:
-          eNextstate = run_profile_handler();
-          break;
+        next_state_e = waiting_handler();
+        break;
+      case SEQUENCE_EDIT:
+        next_state_e = edit_sequence_handler();
+        break;
+      case RUN_SEQUENCE:
+        next_state_e = run_setpoint_handler();
+        break;
       
       default:
-          eNextstate = startup_handler();
-          break;
+        next_state_e = startup_handler();
+        break;
     }
   }
   /* USER CODE END 3 */
@@ -623,7 +644,7 @@ static void MX_USART1_UART_Init(void)
 
   /* USER CODE END USART1_Init 1 */
   huart1.Instance = USART1;
-  huart1.Init.BaudRate = BAUD_RATE;
+  huart1.Init.BaudRate = 115200;
   huart1.Init.WordLength = UART_WORDLENGTH_8B;
   huart1.Init.StopBits = UART_STOPBITS_1;
   huart1.Init.Parity = UART_PARITY_NONE;
@@ -656,7 +677,7 @@ static void MX_USART2_UART_Init(void)
 
   /* USER CODE END USART2_Init 1 */
   huart2.Instance = USART2;
-  huart2.Init.BaudRate = BAUD_RATE;
+  huart2.Init.BaudRate = 115200;
   huart2.Init.WordLength = UART_WORDLENGTH_8B;
   huart2.Init.StopBits = UART_STOPBITS_1;
   huart2.Init.Parity = UART_PARITY_NONE;
