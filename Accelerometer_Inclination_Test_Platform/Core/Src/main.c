@@ -30,18 +30,33 @@
 /* USER CODE BEGIN PTD */
 typedef enum {
   STARTUP_STATE,
-  WAIT_FOR_INSTRUCTION,
-  SEQUENCE_EDIT,
-  RUN_SEQUENCE,
-  MOVE_PLATFORM
+  WAIT_FOR_INSTRUCTION_STATE,
+  EDIT_SETPOINT_STATE,
+  EDIT_SEQUENCE_STATE,
+  RUN_SEQUENCE_STATE,
+  MOVE_PLATFORM_STATE
 } system_state_t;
 
 typedef enum {
+  // Immediate Commands
   MOVE_PLATFORM,
+  STOP,
+  //Setpoint Commands
   ADD_SETPOINT,
   REMOVE_SETPOINT,
   CLEAR_SETPOINTS,
+  FINISH_EDIT_SETPOINT,
+  SET_SPEED_SETPOINT,
+  GET_SETPOINT,
+  GET_ALL_SETPOINTS,
+  //Sequence Commands
+  GET_SEQUENCE,
+  RUN_SEQUENCE,
+  ADD_SETPOINT_TO_SEQUENCE,
+  CLEAR_SEQUENCE,
 
+
+  SERVO_TEST = 254U,
   INSTRUCTION_TEST = 255U
 } instruction_t;
 
@@ -396,25 +411,31 @@ void adxl_read(void) {
 system_state_t startup_handler(void) {
   // System startup processes
   // Calibrate/center servos
-  return WAIT_FOR_INSTRUCTION;
+  return WAIT_FOR_INSTRUCTION_STATE;
 }
 
-system_state_t waiting_handler(void) {
+system_state_t wait_for_instruction_handler(void) {
   //*TODO Detect and decode all incoming serial instructions to determine the next state
 
   // Else
-  return WAIT_FOR_INSTRUCTION;
+  return WAIT_FOR_INSTRUCTION_STATE;
 }
+system_state_t edit_setpoint_handler(void) {
+  // Allow user to define and store a test setpoint
+
+  // Else
+  return WAIT_FOR_INSTRUCTION_STATE;
+
 
 system_state_t edit_sequence_handler(void) {
-  // Allow user to define and store a test setpoint
-  return WAIT_FOR_INSTRUCTION;
+  // Allow user to define and store a sequence
+  return WAIT_FOR_INSTRUCTION_STATE;
 }
 
 system_state_t run_setpoint_handler(void) {
   // Run test setpoint
   // Calls move servo function
-  return WAIT_FOR_INSTRUCTION;
+  return WAIT_FOR_INSTRUCTION_STATE;
 }
 /* USER CODE END 0 */
 
@@ -476,17 +497,20 @@ int main(void)
       case STARTUP_STATE:
         next_state_e = startup_handler();
         break;
-      case WAIT_FOR_INSTRUCTION:
+      case WAIT_FOR_INSTRUCTION_STATE:
         #ifdef TEST // The following code will only be compiled if TEST is defined in the header file
           servo_test();
         #endif
           
         next_state_e = waiting_handler();
         break;
-      case SEQUENCE_EDIT:
+      case EDIT_SETPOINT_STATE:
+              next_state_e = get_setpoint_handler();
+              break;
+      case EDIT_SEQUENCE_STATE:
         next_state_e = edit_sequence_handler();
         break;
-      case RUN_SEQUENCE:
+      case RUN_SEQUENCE_STATE:
         next_state_e = run_setpoint_handler();
         break;
       
