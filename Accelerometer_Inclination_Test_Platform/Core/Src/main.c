@@ -36,6 +36,15 @@ typedef enum {
   MOVE_PLATFORM
 } system_state_t;
 
+typedef enum {
+  MOVE_PLATFORM,
+  ADD_SETPOINT,
+  REMOVE_SETPOINT,
+  CLEAR_SETPOINTS,
+
+  INSTRUCTION_TEST = 255U
+} instruction_t;
+
 //profile struct 
 typedef struct {
    float position;  // Position set point in degrees
@@ -53,22 +62,7 @@ typedef struct {
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#ifdef TEST // The following code will only be compiled if TEST is defined in the header file
-  #define PULSE_WIDTH_RANGE (PULSE_WIDTH_MAX - PULSE_WIDTH_MIN)
-  #define PULSE_WIDTH_MIN 500 // us
-  #define PULSE_WIDTH_NEG_90 (PULSE_WIDTH_0 - (PULSE_WIDTH_RANGE / 3))
-  #define PULSE_WIDTH_NEG_45 (PULSE_WIDTH_0 - (PULSE_WIDTH_RANGE / 6))
-  #define PULSE_WIDTH_0 ((PULSE_WIDTH_MAX + PULSE_WIDTH_MIN) / 2)
-  #define PULSE_WIDTH_POS_45 (PULSE_WIDTH_0 + (PULSE_WIDTH_RANGE / 6))
-  #define PULSE_WIDTH_POS_90 (PULSE_WIDTH_0 + (PULSE_WIDTH_RANGE / 3))
-  #define PULSE_WIDTH_MAX 2500 // us
-  #define PULSE_WIDTH_OFFSET_X -15
-  #define PULSE_WIDTH_OFFSET_Y -25
-  #define SERVO_TEST_DELAY 3000 // ms
 
-  //! Alternate Servo Control Method
-  // #define SERVO_NEUTRAL 75.5
-#endif
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -117,12 +111,21 @@ static void MX_USART1_UART_Init(void);
 static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
 void instruction_handler(void) {
-  int status = 1; // Assume failure
+  int status = 1; /* Assume failure */
+  char uart_buf[RX_BUF_LEN] = { 0 };
+  char uart_return_buf[TX_BUF_LEN] = { 0 };
 
-  // TODO: replace with real instructions defined in a typedef
+  /* Receive message, then echo it back */
+  HAL_UART_Receive(&huart2, (uint8_t *)uart_buf, strlen(uart_buf), INSTRUCTION_TIMEOUT);
+  sprintf(uart_return_buf, "Message: %s\r\n", uart_buf);
+  HAL_UART_Transmit(&huart2, (uint8_t *)uart_return_buf, strlen(uart_return_buf), INSTRUCTION_TIMEOUT);
+  /* Clear UART Buffers */
+  memset(uart_buf, 0, sizeof(uart_buf));
+  memset(uart_return_buf, 0, sizeof(uart_return_buf));
+
   // instruction_t instruction = uart_rx();
   // switch (instruction) {
-  //   case INSTRUCTION:
+  //   case INSTRUCTION_TEST:
   //     instruction_handler();
   //     break;
   // }

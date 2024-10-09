@@ -91,9 +91,29 @@ void Error_Handler(void);
 #define CCR_X htim2.Instance->CCR1
 #define CCR_Y htim2.Instance->CCR2
 #define ADXL_SCALE_FACTOR 0.00414
-#define TEST
 #define SIZE 100
+#define INSTRUCTION_TIMEOUT 5000 /* 5 sec */
+#define RX_BUF_LEN 128
+#define TX_BUF_LEN (RX_BUF_LEN + 128)
 
+#define TEST
+
+#ifdef TEST // The following code will only be compiled if TEST is defined in the header file
+  #define PULSE_WIDTH_RANGE (PULSE_WIDTH_MAX - PULSE_WIDTH_MIN)
+  #define PULSE_WIDTH_MIN 500 // us
+  #define PULSE_WIDTH_NEG_90 (PULSE_WIDTH_0 - (PULSE_WIDTH_RANGE / 3))
+  #define PULSE_WIDTH_NEG_45 (PULSE_WIDTH_0 - (PULSE_WIDTH_RANGE / 6))
+  #define PULSE_WIDTH_0 ((PULSE_WIDTH_MAX + PULSE_WIDTH_MIN) / 2)
+  #define PULSE_WIDTH_POS_45 (PULSE_WIDTH_0 + (PULSE_WIDTH_RANGE / 6))
+  #define PULSE_WIDTH_POS_90 (PULSE_WIDTH_0 + (PULSE_WIDTH_RANGE / 3))
+  #define PULSE_WIDTH_MAX 2500 // us
+  #define PULSE_WIDTH_OFFSET_X -15
+  #define PULSE_WIDTH_OFFSET_Y -25
+  #define SERVO_TEST_DELAY 3000 // ms
+
+  //! Alternate Servo Control Method
+  // #define SERVO_NEUTRAL 75.5
+#endif
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus
