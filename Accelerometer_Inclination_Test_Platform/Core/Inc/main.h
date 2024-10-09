@@ -92,6 +92,7 @@ void Error_Handler(void);
 #define CCR_Y htim2.Instance->CCR2
 #define ADXL_SCALE_FACTOR 0.00414
 #define TEST
+#define SIZE 100
 
 /* USER CODE END Private defines */
 

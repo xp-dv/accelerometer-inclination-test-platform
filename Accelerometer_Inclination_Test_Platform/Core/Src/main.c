@@ -36,6 +36,19 @@ typedef enum {
   MOVE_PLATFORM
 } system_state_t;
 
+//profile struct 
+typedef struct {
+   float position;  // Position set point in degrees
+   float speed;     // Multiplier for the PID controller’s Proportional constant
+} setpoint_t;
+
+// Struct for a setpoint sequence
+typedef struct {
+	 setpoint_t setpoints[SIZE];  // Array of setpoint objects
+	 int* setpoint_sequence; // Array of setpoint indexes
+   
+} setpoint_sequence_t;
+
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
