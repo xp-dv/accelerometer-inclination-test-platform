@@ -87,14 +87,19 @@ void Error_Handler(void);
 
 /* USER CODE BEGIN Private defines */
 
-#define BAUD_RATE 115200
+#define RESERVED 0U
 #define CCR_X htim2.Instance->CCR1
 #define CCR_Y htim2.Instance->CCR2
+
 #define ADXL_SCALE_FACTOR 0.00414
-#define SIZE 100
-#define INSTRUCTION_TIMEOUT 5000 /* 5 sec */
-#define RX_BUF_LEN 128
-#define TX_BUF_LEN (RX_BUF_LEN + 128)
+
+#define BAUD_RATE 115200
+#define TX_BUF_LEN 256U
+#define RX_BUF_LEN (TX_BUF_LEN - 4U)
+#define INSTRUCTION_TIMEOUT 5000 // 5 sec
+#define INSTRUCTION_LEN 4U // Indicator + 3 Decimal Digits = 4, Ex: "{999"
+#define INSTRUCTION_MAX_VAL 1000 // Max possible number defined by INSTRUCTION_LEN + 1
+#define INSTRUCTION_PARAM_LEN 4U // Maximum user-enterable parameters per instruction
 
 #define TEST
 

@@ -22,56 +22,55 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
+#include <stdint.h>
 #include <string.h>
 #include <math.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+typedef uint16_t* array_t; // Typedef set to fit numbers of size of INSTRUCTION_LEN
+
 typedef enum {
   STARTUP_STATE,
-  WAIT_FOR_INSTRUCTION_STATE,
-  EDIT_SETPOINT_STATE,
+  INSTRUCTION_STATE,
   EDIT_SEQUENCE_STATE,
-  RUN_SEQUENCE_STATE,
-  MOVE_PLATFORM_STATE
+  RUN_STATE,
 } system_state_t;
 
 typedef enum {
-  // Immediate Commands
-  MOVE_PLATFORM,
-  STOP,
-  //Setpoint Commands
-  ADD_SETPOINT,
-  REMOVE_SETPOINT,
-  CLEAR_SETPOINTS,
-  FINISH_EDIT_SETPOINT,
-  SET_SPEED_SETPOINT,
-  GET_SETPOINT,
-  GET_ALL_SETPOINTS,
-  //Sequence Commands
-  GET_SEQUENCE,
-  RUN_SEQUENCE,
-  ADD_SETPOINT_TO_SEQUENCE,
-  CLEAR_SEQUENCE,
+  // Instruction code 0 = RESERVED
+  // Motion Commands
+  MOVE_INSTRUCTION = 1,
+  STOP_INSTRUCTION,
+  // Setpoint Commands
+  ADD_SETPOINT_INSTRUCTION,
+  REMOVE_SETPOINT_INSTRUCTION,
+  CLEAR_SETPOINTS_INSTRUCTION,
+  FINISH_EDIT_SETPOINT_INSTRUCTION,
+  SET_SPEED_SETPOINT_INSTRUCTION,
+  GET_SETPOINT_INSTRUCTION,
+  GET_ALL_SETPOINTS_INSTRUCTION,
+  // Sequence Commands
+  GET_SEQUENCE_INSTRUCTION,
+  RUN_SEQUENCE_INSTRUCTION,
+  ADD_SETPOINT_TO_SEQUENCE_INSTRUCTION,
+  CLEAR_SEQUENCE_INSTRUCTION,
+  // Test Commands
+  TEST_SERVOS_INSTRUCTION = 998U,
+  TEST_ECHO_INSTRUCTION,
+} instruction_code_t;
 
+typedef enum {
+  //* General
+  STATUS_SUCCESS,
+  STATUS_UNSPECIFIED_ERROR,
+} status_code_t;
 
-  SERVO_TEST = 254U,
-  INSTRUCTION_TEST = 255U
-} instruction_t;
-
-//profile struct 
 typedef struct {
-   float position;  // Position set point in degrees
-   float speed;     // Multiplier for the PID controller’s Proportional constant
+  float position; // In degrees
+  float speed;    // Multiplier for the PID controller’s Proportional constant
 } setpoint_t;
-
-// Struct for a setpoint sequence
-typedef struct {
-	 setpoint_t setpoints[SIZE];  // Array of setpoint objects
-	 int* setpoint_sequence; // Array of setpoint indexes
-   
-} setpoint_sequence_t;
 
 /* USER CODE END PTD */
 
@@ -94,27 +93,27 @@ UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-// Accelerometer Read
+
+setpoint_t setpoints[INSTRUCTION_MAX_VAL] = {{
+  .position = 0,
+  .speed = 0,
+}};
+
+struct setpoint_sequence {
+  setpoint_t setpoints[INSTRUCTION_MAX_VAL]; // Array of setpoint objects
+};
+
+//* Accelerometer Read
 uint8_t data_rec[6]; // The 6 bytes of ADXL data are stored here
 float x_g, y_g, z_g;
 float x_ang, y_ang, z_ang;
 
-// Servo Motor Control
+//* Servo Motor Control
 float pos_x;
 float pos_y;
 float pos_x_last;
 float pos_y_last;
 
-#ifdef TEST // The following code will only be compiled if TEST is defined in the header file
-  //! Alternate Servo Control Method
-  // float offset = 0; // Angle of center position relative to servo neutral
-  // float XPos = 90; // Desired X Axis angle, range: -135 to +135
-  // float YPos = 90; // Desired Y Axis angle, range: -135 to +135
-  // // CCR values for the desired X or Y Axis angle
-  // float XValP, XValN, YValP, YValN;
-  // // CCR values for the desired X or Y Axis angle / 2
-  // float XValP2, XValN2, YValP2, YValN2;
-#endif
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -125,54 +124,29 @@ static void MX_SPI3_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
-void instruction_handler(void) {
-  int status = 1; /* Assume failure */
-  char uart_buf[RX_BUF_LEN] = { 0 };
-  char uart_return_buf[TX_BUF_LEN] = { 0 };
 
-  /* Receive message, then echo it back */
-  HAL_UART_Receive(&huart2, (uint8_t *)uart_buf, strlen(uart_buf), INSTRUCTION_TIMEOUT);
-  sprintf(uart_return_buf, "Message: %s\r\n", uart_buf);
-  HAL_UART_Transmit(&huart2, (uint8_t *)uart_return_buf, strlen(uart_return_buf), INSTRUCTION_TIMEOUT);
-  /* Clear UART Buffers */
-  memset(uart_buf, 0, sizeof(uart_buf));
-  memset(uart_return_buf, 0, sizeof(uart_return_buf));
+/* USER CODE END PFP */
 
-  // instruction_t instruction = uart_rx();
-  // switch (instruction) {
-  //   case INSTRUCTION_TEST:
-  //     instruction_handler();
-  //     break;
-  // }
-}
+/* Private user code ---------------------------------------------------------*/
+/* USER CODE BEGIN 0 */
 
-int move_platform(int x_ang, int y_ang, int speed) {
-  // TODO: current_position = adxl_read();
-  // TODO: PID_Update();
-  // TODO: Function to translate x_ang, y_ang, & speed from degrees to CCR value
-  // TODO: Set CCR values to final calculated position
-}
-
-int run_setpoint(int* setpoint_i) {
- // TODO: Same as move_platform, but the setpoint information must be parsed from setpoints[]
-}
-
+//* Private Functions
 void adxl_tx(uint8_t address, uint8_t value) {
   uint8_t data[2];
-  data[0] = address | 0x40;  // multibyte write enabled
+  data[0] = address | 0x40;  // Multibyte write enabled
   data[1] = value;
-  HAL_GPIO_WritePin(ADXL_CS_GPIO_Port, ADXL_CS_Pin, GPIO_PIN_RESET); // pull the cs pin low to enable the slave
-  HAL_SPI_Transmit(&hspi3, data, 2, 100); // transmit the address and data
-  HAL_GPIO_WritePin(ADXL_CS_GPIO_Port, ADXL_CS_Pin, GPIO_PIN_SET); // pull the cs pin high to disable the slave
+  HAL_GPIO_WritePin(ADXL_CS_GPIO_Port, ADXL_CS_Pin, GPIO_PIN_RESET); // Pull the cs pin low to enable the slave
+  HAL_SPI_Transmit(&hspi3, data, 2, 100); // Transmit the address and data
+  HAL_GPIO_WritePin(ADXL_CS_GPIO_Port, ADXL_CS_Pin, GPIO_PIN_SET); // Pull the cs pin high to disable the slave
 }
 
 void adxl_rx(uint8_t address) {
-  address |= 0x80;  // read operation
-  address |= 0x40;  // multibyte read
-  HAL_GPIO_WritePin(ADXL_CS_GPIO_Port, ADXL_CS_Pin, GPIO_PIN_RESET);  // pull the cs pin low to enable the slave
-  HAL_SPI_Transmit(&hspi3, &address, 1, 100);  // send the address from where you want to read data
-  HAL_SPI_Receive(&hspi3, data_rec, 6, 100);  // read 6 BYTES of data
-  HAL_GPIO_WritePin(ADXL_CS_GPIO_Port, ADXL_CS_Pin, GPIO_PIN_SET);  // pull the cs pin high to disable the slave
+  address |= 0x80;  // Read operation
+  address |= 0x40;  // Multibyte read
+  HAL_GPIO_WritePin(ADXL_CS_GPIO_Port, ADXL_CS_Pin, GPIO_PIN_RESET);  // Pull the cs pin low to enable the slave
+  HAL_SPI_Transmit(&hspi3, &address, 1, 100);  // Send single-byte address from where you want to read data
+  HAL_SPI_Receive(&hspi3, data_rec, 6, 100);  // Read 6 BYTES of data
+  HAL_GPIO_WritePin(ADXL_CS_GPIO_Port, ADXL_CS_Pin, GPIO_PIN_SET);  // Pull the cs pin high to disable the slave
 }
 
 void adxl_init(void) {
@@ -223,220 +197,174 @@ void adxl_read(void) {
   }
 }
 
-//*TODO Incremental position movement. Call the read accelerometer function every time the position is updated
-//*TODO Convert x and y-axis angular position to pulse width position
-//! For now pos_x, pos_y, v_x, and v_y are in units of 1 ms pulse width
-// int move_servo(float pos_x, float pos_y, int v_x, int v_y) {
-//   int pos_x_pw = pos_x;
-//   int pos_y_pw = pos_y;
-//   int sample_rate = 1; // 1 ms
-//   v_x = pos_x - pos_x_last;
-//   v_y = pos_y - pos_y_last;
-//   for (pos_x_pw = pos_x_last, pos_y_pw = pos_y_last; pos_x_pw != pos_x_last && pos_y_pw != pos_y_last; pos_x_pw += v_x, pos_y_pw += v_y) { //*TODO Conditional statements not functional in case velocity isn't an exact multiple
-//     adxl_read();
-//     CCR_X = pos_x_pw;
-//     CCR_X = pos_y_pw;
-//     delay_us(sample_rate);
-//   }
-//   //! Alternate Servo Control Method
-//   // CCR = 75 + (angle)(1/2.7)
-//   // 1 degree = 2.7 CCR
-//   // CCR1 = 75 + pos_x*(1/2.7); // Move x-axis servo
+//* Instruction Functions
+int move(float x_ang, float y_ang, int speed) {
+  /**
+   * TASK:
+   * ! current_position = adxl_read();
+   * PID_Update();
+   * Function to translate x_ang, y_ang, & speed from degrees to CCR value
+   * Set CCR values to final calculated position
+   */
+  /**
+   * TODO:
+   * Servo Control and Accelerometer Sampling Timer (Basically the system clock)
+   * HAL_TIM_Base_Start(&htim1); // Clock (APB2) = 84 MHz. If Prescaler = (84 - 1) & Max Timer Count = (2^16 - 1), then f = 84 MHz / 84 = 1 MHz, T = 1 us, and Max Delay = (2^16 - 1) * T = 65.535 ms
+   */
+  return STATUS_SUCCESS;
+}
 
-//   // CCR2 = 75 + pos_y*(1/2.7); // Move y-axis servo
-//   // HAL_Delay(1000); // Wait before moving again
-// }
+// ! Do not create stop() function here. Trigger an interrupt from the instruction_handler() for the stop instruction, instead.
+// Attempts to stop platform. If platform does not stop, reset stm board.
 
-#ifdef TEST // The following code will only be compiled if TEST is defined in the header file
-  void servo_test(void) {
-    char test_pos[100];
-    int len;
-    if (HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin) == GPIO_PIN_RESET) {
-      // Center Platform
-      CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0°
-      CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0°
-      HAL_Delay(SERVO_TEST_DELAY);
-      len = snprintf(test_pos, sizeof(test_pos), "Testing 0° for X and Y axes:\r\n");
-      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-      adxl_read();
+int run_setpoint(array_t setpoint_i) {
+  // TODO: Same as move, but the setpoint information must be parsed from setpoints[]
+  return STATUS_SUCCESS;
+}
 
-      // Move X-Axis
-      CCR_X = PULSE_WIDTH_NEG_90 + PULSE_WIDTH_OFFSET_X; // -90° or 45° (From PULSE_WIDTH_MIN)
-      CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
-      HAL_Delay(SERVO_TEST_DELAY);
-      len = snprintf(test_pos, sizeof(test_pos), "Testing -90° for X, 0° for Y axis:\r\n");
-      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-      adxl_read();
-      CCR_X = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_X; // -45° or 90° (From PULSE_WIDTH_MIN)
-      CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
-      HAL_Delay(SERVO_TEST_DELAY);
-      len = snprintf(test_pos, sizeof(test_pos), "Testing -45° for X, 0° for Y axis:\r\n");
-      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-      adxl_read();
-      CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
-      CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
-      HAL_Delay(SERVO_TEST_DELAY);
-      len = snprintf(test_pos, sizeof(test_pos), "Testing 0° for X and Y axes:\r\n");
-      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-      adxl_read();
-      CCR_X = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_X; // +45° or 180° (From PULSE_WIDTH_MIN)
-      CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
-      HAL_Delay(SERVO_TEST_DELAY);
-      len = snprintf(test_pos, sizeof(test_pos), "Testing +45° for X, 0° for Y axis:\r\n");
-      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-      adxl_read();
-      CCR_X = PULSE_WIDTH_POS_90 + PULSE_WIDTH_OFFSET_X; // +90° or 225° (From PULSE_WIDTH_MIN)
-      CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
-      HAL_Delay(SERVO_TEST_DELAY);
-      len = snprintf(test_pos, sizeof(test_pos), "Testing +90° for X, 0° for Y axis:\r\n");
-      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-      adxl_read();
+int test_servos(void) {
+  char test_pos[100];
+  int len;
+  if (HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin) == GPIO_PIN_RESET) { //! Needs to be polled
+    // Center Platform
+    CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0°
+    CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0°
+    HAL_Delay(SERVO_TEST_DELAY);
+    len = snprintf(test_pos, sizeof(test_pos), "Testing 0° for X and Y axes:\r\n");
+    HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
+    adxl_read();
 
-      // Move Y-Axis
-      CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
-      CCR_Y = PULSE_WIDTH_NEG_90 + PULSE_WIDTH_OFFSET_Y; // -90° or 45° (From PULSE_WIDTH_MIN)
-      HAL_Delay(SERVO_TEST_DELAY);
-      len = snprintf(test_pos, sizeof(test_pos), "Testing 0° for X, -90° for Y axis:\r\n");
-      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-      adxl_read();
-      CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
-      CCR_Y = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_Y; // -45° or 90° (From PULSE_WIDTH_MIN)
-      HAL_Delay(SERVO_TEST_DELAY);
-      len = snprintf(test_pos, sizeof(test_pos), "Testing 0° for X, -45° for Y axis:\r\n");
-      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-      adxl_read();
-      CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
-      CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
-      HAL_Delay(SERVO_TEST_DELAY);
-      len = snprintf(test_pos, sizeof(test_pos), "Testing 0° for X and Y axes:\r\n");
-      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-      adxl_read();
-      CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
-      CCR_Y = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_Y; // +45° or 180° (From PULSE_WIDTH_MIN)
-      HAL_Delay(SERVO_TEST_DELAY);
-      len = snprintf(test_pos, sizeof(test_pos), "Testing 0° for X, +45° for Y axis:\r\n");
-      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-      adxl_read();
-      CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
-      CCR_Y = PULSE_WIDTH_POS_90 + PULSE_WIDTH_OFFSET_Y; // +90° or 225° (From PULSE_WIDTH_MIN)
-      HAL_Delay(SERVO_TEST_DELAY);
-      len = snprintf(test_pos, sizeof(test_pos), "Testing 0° for X, +90° for Y axis:\r\n");
-      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-      adxl_read();
+    // Move X-Axis
+    CCR_X = PULSE_WIDTH_NEG_90 + PULSE_WIDTH_OFFSET_X; // -90° or 45° (From PULSE_WIDTH_MIN)
+    CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
+    HAL_Delay(SERVO_TEST_DELAY);
+    len = snprintf(test_pos, sizeof(test_pos), "Testing -90° for X, 0° for Y axis:\r\n");
+    HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
+    adxl_read();
+    CCR_X = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_X; // -45° or 90° (From PULSE_WIDTH_MIN)
+    CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
+    HAL_Delay(SERVO_TEST_DELAY);
+    len = snprintf(test_pos, sizeof(test_pos), "Testing -45° for X, 0° for Y axis:\r\n");
+    HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
+    adxl_read();
+    CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
+    CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
+    HAL_Delay(SERVO_TEST_DELAY);
+    len = snprintf(test_pos, sizeof(test_pos), "Testing 0° for X and Y axes:\r\n");
+    HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
+    adxl_read();
+    CCR_X = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_X; // +45° or 180° (From PULSE_WIDTH_MIN)
+    CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
+    HAL_Delay(SERVO_TEST_DELAY);
+    len = snprintf(test_pos, sizeof(test_pos), "Testing +45° for X, 0° for Y axis:\r\n");
+    HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
+    adxl_read();
+    CCR_X = PULSE_WIDTH_POS_90 + PULSE_WIDTH_OFFSET_X; // +90° or 225° (From PULSE_WIDTH_MIN)
+    CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
+    HAL_Delay(SERVO_TEST_DELAY);
+    len = snprintf(test_pos, sizeof(test_pos), "Testing +90° for X, 0° for Y axis:\r\n");
+    HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
+    adxl_read();
 
-      // Move Both Axes
-      CCR_X = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_X; // -45°
-      CCR_Y = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_Y; // -45°
-      HAL_Delay(SERVO_TEST_DELAY);
-      len = snprintf(test_pos, sizeof(test_pos), "Testing -45° for X and Y axes:\r\n");
-      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-      adxl_read();
-      CCR_X = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_X; // +45°
-      CCR_Y = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_Y; // +45°
-      HAL_Delay(SERVO_TEST_DELAY);
-      len = snprintf(test_pos, sizeof(test_pos), "Testing +45° for X and Y axes:\r\n");
-      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-      adxl_read();
-      CCR_X = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_X; // +45°
-      CCR_Y = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_Y; // -45°
-      HAL_Delay(SERVO_TEST_DELAY);
-      len = snprintf(test_pos, sizeof(test_pos), "Testing +45° for X, -45° for Y axis:\r\n");
-      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-      adxl_read();
-      CCR_X = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_X; // -45°
-      CCR_Y = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_Y; // +45°
-      HAL_Delay(SERVO_TEST_DELAY);
-      len = snprintf(test_pos, sizeof(test_pos), "Testing -45° for X, +45° for Y axis:\r\n");
-      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-      adxl_read();
-      CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0°
-      CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0°
-      HAL_Delay(SERVO_TEST_DELAY);
-      len = snprintf(test_pos, sizeof(test_pos), "Testing 0° for X and Y axes:\r\n");
-      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-      adxl_read();
+    // Move Y-Axis
+    CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
+    CCR_Y = PULSE_WIDTH_NEG_90 + PULSE_WIDTH_OFFSET_Y; // -90° or 45° (From PULSE_WIDTH_MIN)
+    HAL_Delay(SERVO_TEST_DELAY);
+    len = snprintf(test_pos, sizeof(test_pos), "Testing 0° for X, -90° for Y axis:\r\n");
+    HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
+    adxl_read();
+    CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
+    CCR_Y = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_Y; // -45° or 90° (From PULSE_WIDTH_MIN)
+    HAL_Delay(SERVO_TEST_DELAY);
+    len = snprintf(test_pos, sizeof(test_pos), "Testing 0° for X, -45° for Y axis:\r\n");
+    HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
+    adxl_read();
+    CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
+    CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
+    HAL_Delay(SERVO_TEST_DELAY);
+    len = snprintf(test_pos, sizeof(test_pos), "Testing 0° for X and Y axes:\r\n");
+    HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
+    adxl_read();
+    CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
+    CCR_Y = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_Y; // +45° or 180° (From PULSE_WIDTH_MIN)
+    HAL_Delay(SERVO_TEST_DELAY);
+    len = snprintf(test_pos, sizeof(test_pos), "Testing 0° for X, +45° for Y axis:\r\n");
+    HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
+    adxl_read();
+    CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
+    CCR_Y = PULSE_WIDTH_POS_90 + PULSE_WIDTH_OFFSET_Y; // +90° or 225° (From PULSE_WIDTH_MIN)
+    HAL_Delay(SERVO_TEST_DELAY);
+    len = snprintf(test_pos, sizeof(test_pos), "Testing 0° for X, +90° for Y axis:\r\n");
+    HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
+    adxl_read();
 
-      //! Alternate Servo Control Method
-      // Calculate CCR Values
-      // XValP = SERVO_NEUTRAL + (XPos + offset)*(1/2.7); // Calculate CCR value for desired +XPos
-      // XValN = SERVO_NEUTRAL + (-XPos + offset)*(1/2.7); // Calculate CCR value for desired -XPos
-      // YValP = SERVO_NEUTRAL + (YPos + offset)*(1/2.7); // Calculate CCR value for desired +YPos
-      // YValN = SERVO_NEUTRAL + (-YPos + offset)*(1/2.7); // Calculate CCR value for desired -YPos
-      // XValP2 = SERVO_NEUTRAL + (XPos/2 + offset)*(1/2.7); // Calculate CCR value for desired +XPos
-      // XValN2 = SERVO_NEUTRAL + (-XPos/2 + offset)*(1/2.7); // Calculate CCR value for desired -XPos
-      // YValP2 = SERVO_NEUTRAL + (YPos/2 + offset)*(1/2.7); // Calculate CCR value for desired +YPos
-      // YValN2 = SERVO_NEUTRAL + (-YPos/2 + offset)*(1/2.7); // Calculate CCR value for desired -YPos
-
-      // /* Move X Axis */
-      // CCR_X = XValN; // Move X-Axis to -XPos
-      // HAL_Delay(SERVO_TEST_DELAY);
-      // CCR_X = XValP; // Move X-Axis to +XPos
-      // HAL_Delay(SERVO_TEST_DELAY);
-      // CCR_X = SERVO_NEUTRAL; // Return X-Axis to Neutral
-      // HAL_Delay(SERVO_TEST_DELAY);
-
-      // /* Move Y Axis */
-      // CCR_Y = YValN; // Move Y-Axis to -YPos
-      // HAL_Delay(SERVO_TEST_DELAY);
-      // CCR_Y = YValP; // Move Y-Axis to +YPos
-      // HAL_Delay(SERVO_TEST_DELAY);
-      // CCR_Y = SERVO_NEUTRAL; // Return Y-Axis to Neutral
-      // HAL_Delay(SERVO_TEST_DELAY);
-
-      // /* Move Both Axes */
-      // CCR_X = XValN2; // Move X-Axis to -XPos
-      // CCR_Y = YValN2; // Move Y-Axis to -YPos
-      // HAL_Delay(SERVO_TEST_DELAY);
-      // CCR_X = XValP2; // Move X-Axis to -XPos
-      // CCR_Y = YValN2; // Move Y-Axis to -YPos
-      // HAL_Delay(SERVO_TEST_DELAY);
-      // CCR_X = XValP2; // Move X-Axis to -XPos
-      // CCR_Y = YValP2; // Move Y-Axis to -YPos
-      // HAL_Delay(SERVO_TEST_DELAY);
-      // CCR_X = XValN2; // Move X-Axis to +XPos
-      // CCR_Y = YValP2; // Move Y-Axis to +YPos
-      // HAL_Delay(SERVO_TEST_DELAY);
-      // CCR_X = SERVO_NEUTRAL; // Return X-Axis to Neutral
-      // CCR_Y = SERVO_NEUTRAL; // Return Y-Axis to Neutral
-      // HAL_Delay(SERVO_TEST_DELAY);
-    }
+    // Move Both Axes
+    CCR_X = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_X; // -45°
+    CCR_Y = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_Y; // -45°
+    HAL_Delay(SERVO_TEST_DELAY);
+    len = snprintf(test_pos, sizeof(test_pos), "Testing -45° for X and Y axes:\r\n");
+    HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
+    adxl_read();
+    CCR_X = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_X; // +45°
+    CCR_Y = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_Y; // +45°
+    HAL_Delay(SERVO_TEST_DELAY);
+    len = snprintf(test_pos, sizeof(test_pos), "Testing +45° for X and Y axes:\r\n");
+    HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
+    adxl_read();
+    CCR_X = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_X; // +45°
+    CCR_Y = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_Y; // -45°
+    HAL_Delay(SERVO_TEST_DELAY);
+    len = snprintf(test_pos, sizeof(test_pos), "Testing +45° for X, -45° for Y axis:\r\n");
+    HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
+    adxl_read();
+    CCR_X = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_X; // -45°
+    CCR_Y = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_Y; // +45°
+    HAL_Delay(SERVO_TEST_DELAY);
+    len = snprintf(test_pos, sizeof(test_pos), "Testing -45° for X, +45° for Y axis:\r\n");
+    HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
+    adxl_read();
+    CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0°
+    CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0°
+    HAL_Delay(SERVO_TEST_DELAY);
+    len = snprintf(test_pos, sizeof(test_pos), "Testing 0° for X and Y axes:\r\n");
+    HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
+    adxl_read();
   }
-#endif
-/* USER CODE END PFP */
-
-/* Private user code ---------------------------------------------------------*/
-/* USER CODE BEGIN 0 */
-
-/* Prototype Event Handlers */
-system_state_t startup_handler(void) {
-  // System startup processes
-  // Calibrate/center servos
-  return WAIT_FOR_INSTRUCTION_STATE;
+  return STATUS_SUCCESS;
 }
 
-system_state_t wait_for_instruction_handler(void) {
-  //*TODO Detect and decode all incoming serial instructions to determine the next state
+//* Event Handlers
+system_state_t startup_state_handler(void) {
+  // PWM
+  // Internal Clock (HCLK) = 100 MHz. If Prescaler = (100 - 1) & Max Timer Count = (20000 - 1),
+  // then f = 100 MHz / 100 = 1 MHz, T = 1 us, and PWM f = 1/(20000 * T) = 50 Hz
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
 
-  // Else
-  return WAIT_FOR_INSTRUCTION_STATE;
+  // Accelerometer
+  adxl_init();
+  adxl_id();
+
+  return INSTRUCTION_STATE;
 }
-system_state_t edit_setpoint_handler(void) {
-  // Allow user to define and store a test setpoint
 
-  // Else
-  return WAIT_FOR_INSTRUCTION_STATE;
+system_state_t instruction_state_handler(void) {
+  // Processes incoming instructions over UART
+  return INSTRUCTION_STATE;
+}
 
-
-system_state_t edit_sequence_handler(void) {
+system_state_t edit_sequence_state_handler(void) {
   // Allow user to define and store a sequence
-  return WAIT_FOR_INSTRUCTION_STATE;
+  return INSTRUCTION_STATE;
 }
 
-system_state_t run_setpoint_handler(void) {
+system_state_t run_state_handler(void) {
+  // Listen for stop commands
   // Run test setpoint
   // Calls move servo function
-  return WAIT_FOR_INSTRUCTION_STATE;
+  return INSTRUCTION_STATE;
 }
+
 /* USER CODE END 0 */
 
 /**
@@ -474,16 +402,8 @@ int main(void)
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
 
-  /* PWM Timers */
-  // Internal Clock (HCLK) = 100 MHz. If Prescaler = (100 - 1) & Max Timer Count = (20000 - 1), then f = 100 MHz / 100 = 1 MHz, T = 1 us, and PWM f = 1/(20000 * T) = 50 Hz
-  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
-  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
-  //*TODO Servo Control and Accelerometer Sample Timer (Basically the system clock)
-  // HAL_TIM_Base_Start(&htim1); // Internal Clock (APB2) = 84 MHz. If Prescaler = (84 - 1) & Max Timer Count = (2^16 - 1), then f = 84 MHz / 84 = 1 MHz, T = 1 us, and Max Delay = (2^16 - 1) * T = 65.535 ms
-
+  //* Startup State
   system_state_t next_state_e = STARTUP_STATE;
-  adxl_init();
-  adxl_id();
 
   /* USER CODE END 2 */
 
@@ -493,32 +413,28 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+
+    //* State Handlers
+    // Perform functions for given state, then return the value of the next state
     switch (next_state_e) {
       case STARTUP_STATE:
-        next_state_e = startup_handler();
+        next_state_e = startup_state_handler();
         break;
-      case WAIT_FOR_INSTRUCTION_STATE:
-        #ifdef TEST // The following code will only be compiled if TEST is defined in the header file
-          servo_test();
-        #endif
-          
-        next_state_e = waiting_handler();
+      case INSTRUCTION_STATE:
+        next_state_e = instruction_state_handler();
         break;
-      case EDIT_SETPOINT_STATE:
-              next_state_e = get_setpoint_handler();
-              break;
       case EDIT_SEQUENCE_STATE:
-        next_state_e = edit_sequence_handler();
+        next_state_e = edit_sequence_state_handler();
         break;
-      case RUN_SEQUENCE_STATE:
-        next_state_e = run_setpoint_handler();
+      case RUN_STATE:
+        next_state_e = run_state_handler();
         break;
-      
       default:
-        next_state_e = startup_handler();
+        next_state_e = startup_state_handler();
         break;
     }
   }
+
   /* USER CODE END 3 */
 }
 
@@ -684,7 +600,7 @@ static void MX_USART1_UART_Init(void)
 
   /* USER CODE END USART1_Init 1 */
   huart1.Instance = USART1;
-  huart1.Init.BaudRate = 115200;
+  huart1.Init.BaudRate = BAUD_RATE;
   huart1.Init.WordLength = UART_WORDLENGTH_8B;
   huart1.Init.StopBits = UART_STOPBITS_1;
   huart1.Init.Parity = UART_PARITY_NONE;
@@ -717,7 +633,7 @@ static void MX_USART2_UART_Init(void)
 
   /* USER CODE END USART2_Init 1 */
   huart2.Instance = USART2;
-  huart2.Init.BaudRate = 115200;
+  huart2.Init.BaudRate = BAUD_RATE;
   huart2.Init.WordLength = UART_WORDLENGTH_8B;
   huart2.Init.StopBits = UART_STOPBITS_1;
   huart2.Init.Parity = UART_PARITY_NONE;
