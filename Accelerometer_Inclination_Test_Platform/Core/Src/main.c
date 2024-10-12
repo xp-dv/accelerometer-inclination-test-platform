@@ -94,17 +94,17 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 
-setpoint_t setpoints[INSTRUCTION_MAX_VAL] = {{
+setpoint_t setpoints[INSTRUCTION_CODE_T_MAX] = {{
   .position = 0,
   .speed = 0,
 }};
 
 struct setpoint_sequence {
-  setpoint_t setpoints[INSTRUCTION_MAX_VAL]; // Array of setpoint objects
+  setpoint_t setpoints[INSTRUCTION_CODE_T_MAX]; // Array of setpoint objects
 };
 
 //* Accelerometer Read
-uint8_t data_rec[6]; // The 6 bytes of ADXL data are stored here
+uint8_t adxl_rx_buf[ADXL_DATA_SIZE]; // The 6 bytes of ADXL data are stored here
 float x_g, y_g, z_g;
 float x_ang, y_ang, z_ang;
 
@@ -133,47 +133,48 @@ static void MX_TIM2_Init(void);
 //* Private Functions
 void adxl_tx(uint8_t address, uint8_t value) {
   uint8_t data[2];
-  data[0] = address | 0x40;  // Multibyte write enabled
+  data[0] = address | BIT_6_MASK;  // Multibyte write enabled
   data[1] = value;
   HAL_GPIO_WritePin(ADXL_CS_GPIO_Port, ADXL_CS_Pin, GPIO_PIN_RESET); // Pull the cs pin low to enable the slave
-  HAL_SPI_Transmit(&hspi3, data, 2, 100); // Transmit the address and data
+  HAL_SPI_Transmit(&hspi3, data, sizeof(data), ADXL_TIMEOUT); // Transmit the address and data
   HAL_GPIO_WritePin(ADXL_CS_GPIO_Port, ADXL_CS_Pin, GPIO_PIN_SET); // Pull the cs pin high to disable the slave
 }
 
 void adxl_rx(uint8_t address) {
-  address |= 0x80;  // Read operation
-  address |= 0x40;  // Multibyte read
+  address |= BIT_7_MASK;  // Read operation
+  address |= BIT_6_MASK;  // Multibyte read
   HAL_GPIO_WritePin(ADXL_CS_GPIO_Port, ADXL_CS_Pin, GPIO_PIN_RESET);  // Pull the cs pin low to enable the slave
-  HAL_SPI_Transmit(&hspi3, &address, 1, 100);  // Send single-byte address from where you want to read data
-  HAL_SPI_Receive(&hspi3, data_rec, 6, 100);  // Read 6 BYTES of data
+  HAL_SPI_Transmit(&hspi3, &address, ADXL_ADDRESS_SIZE, ADXL_TIMEOUT);  // Send single-byte address from where you want to read data
+  HAL_SPI_Receive(&hspi3, adxl_rx_buf, ADXL_DATA_SIZE, ADXL_TIMEOUT);  // Read the 6 bytes of data
   HAL_GPIO_WritePin(ADXL_CS_GPIO_Port, ADXL_CS_Pin, GPIO_PIN_SET);  // Pull the cs pin high to disable the slave
 }
 
 void adxl_init(void) {
   HAL_Delay(2000);
-  adxl_tx(0x31, 0x01);  // data_format range= +- 4g
-  adxl_tx(0x2d, 0x00);  // reset all bits
-  adxl_tx(0x2d, 0x08);  // power_cntl measure and wake up 8hz
+  adxl_tx(ADXL_DATA_FORMAT, BIT_0_MASK);  // Data format range = +/- 4g
+  adxl_tx(ADXL_POWER_CTL, BIT_RESET_MASK);  // Reset all bits
+  adxl_tx(ADXL_POWER_CTL, BIT_3_MASK);  // Set power control mode to measure
 }
 
 void adxl_id(void) {
-  uint8_t device_id_addr = 0x00; // Address of the device ID register
   uint8_t device_id = 0;
-  adxl_rx(device_id_addr); // Assuming this will populate 'data_rec' with the ID
+  adxl_rx(ADXL_DEVID); // Assuming this will populate 'adxl_rx_buf' with the Device ID
+  device_id = adxl_rx_buf[0]; // Assuming the ID is the first byte read
 
-  device_id = data_rec[0]; // Assuming the ID is the first byte read
-  char debug_message[30];
-  sprintf(debug_message, "Device ID: 0x%X\r\n", device_id);
-  HAL_UART_Transmit(&huart1, (uint8_t*)debug_message, strlen(debug_message), 100);
-  HAL_UART_Transmit(&huart2, (uint8_t*)debug_message, strlen(debug_message), 100);
+  #ifdef DEBUG
+    char debug_buf[30];
+    sprintf(debug_buf, "Device ID: 0x%X\r\n", device_id);
+    HAL_UART_Transmit(&huart1, (uint8_t*)debug_buf, strlen(debug_buf), ADXL_TIMEOUT);
+    HAL_UART_Transmit(&huart2, (uint8_t*)debug_buf, strlen(debug_buf), ADXL_TIMEOUT);
+  #endif
 }
 
 void adxl_read(void) {
-  adxl_rx(0x32); // Request data starting from the DATAX0 register
+  adxl_rx(ADXL_DATAX0); // Request data starting from the first data register
   // Convert the accelerometer values to 16-bit signed integers
-  int16_t x_raw = (int16_t)((data_rec[1] << 8) | data_rec[0]);
-  int16_t y_raw = (int16_t)((data_rec[3] << 8) | data_rec[2]);
-  int16_t z_raw = (int16_t)((data_rec[5] << 8) | data_rec[4]);
+  int16_t x_raw = (int16_t)((adxl_rx_buf[1] << 8) | adxl_rx_buf[0]);
+  int16_t y_raw = (int16_t)((adxl_rx_buf[3] << 8) | adxl_rx_buf[2]);
+  int16_t z_raw = (int16_t)((adxl_rx_buf[5] << 8) | adxl_rx_buf[4]);
 
   // Convert raw values to g's
   x_g = x_raw * ADXL_SCALE_FACTOR;
@@ -188,13 +189,15 @@ void adxl_read(void) {
   y_ang = y_ang * (180.0f / M_PI);
   // z_ang = z_ang * (180.0f / M_PI);
 
-  char uart_buf[64];
-  int len = snprintf(uart_buf, sizeof(uart_buf), "X(°)=%0.2f, Y(°)=%0.2f, Z(g)=%0.2f\r\n", x_ang, y_ang, z_g);
-  if (len > 0 && len < sizeof(uart_buf)) {
-  HAL_Delay(200); //*TODO Remove this delay when sample timer has been implemented
-  HAL_UART_Transmit(&huart1, (uint8_t*)uart_buf, len, HAL_MAX_DELAY);
-  HAL_UART_Transmit(&huart2, (uint8_t*)uart_buf, len, HAL_MAX_DELAY); // Send data
-  }
+  #ifdef DEBUG
+    char debug_buf[64];
+    int len = snprintf(debug_buf, sizeof(debug_buf), "X(°)=%0.2f, Y(°)=%0.2f, Z(g)=%0.2f\r\n", x_ang, y_ang, z_g);
+    if (len > 0 && len < sizeof(debug_buf)) {
+      HAL_Delay(200); //*TODO Remove this delay when sample timer has been implemented
+      HAL_UART_Transmit(&huart1, (uint8_t*)debug_buf, len, HAL_MAX_DELAY);
+      HAL_UART_Transmit(&huart2, (uint8_t*)debug_buf, len, HAL_MAX_DELAY);
+    }
+  #endif
 }
 
 //* Instruction Functions
@@ -230,105 +233,153 @@ int test_servos(void) {
     CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0°
     CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0°
     HAL_Delay(SERVO_TEST_DELAY);
-    len = snprintf(test_pos, sizeof(test_pos), "Testing 0° for X and Y axes:\r\n");
-    HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-    adxl_read();
+    
+    #ifdef DEBUG
+      len = snprintf(test_pos, sizeof(test_pos), "Testing 0° for X and Y axes:\r\n");
+      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
+      adxl_read();
+    #endif
 
     // Move X-Axis
     CCR_X = PULSE_WIDTH_NEG_90 + PULSE_WIDTH_OFFSET_X; // -90° or 45° (From PULSE_WIDTH_MIN)
     CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
     HAL_Delay(SERVO_TEST_DELAY);
-    len = snprintf(test_pos, sizeof(test_pos), "Testing -90° for X, 0° for Y axis:\r\n");
-    HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-    adxl_read();
+    
+    #ifdef DEBUG
+      len = snprintf(test_pos, sizeof(test_pos), "Testing -90° for X, 0° for Y axis:\r\n");
+      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
+      adxl_read();
+    #endif
     CCR_X = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_X; // -45° or 90° (From PULSE_WIDTH_MIN)
     CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
     HAL_Delay(SERVO_TEST_DELAY);
-    len = snprintf(test_pos, sizeof(test_pos), "Testing -45° for X, 0° for Y axis:\r\n");
-    HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-    adxl_read();
+    
+    #ifdef DEBUG
+      len = snprintf(test_pos, sizeof(test_pos), "Testing -45° for X, 0° for Y axis:\r\n");
+      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
+      adxl_read();
+    #endif
     CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
     CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
     HAL_Delay(SERVO_TEST_DELAY);
-    len = snprintf(test_pos, sizeof(test_pos), "Testing 0° for X and Y axes:\r\n");
-    HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-    adxl_read();
+    
+    #ifdef DEBUG
+      len = snprintf(test_pos, sizeof(test_pos), "Testing 0° for X and Y axes:\r\n");
+      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
+      adxl_read();
+    #endif
     CCR_X = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_X; // +45° or 180° (From PULSE_WIDTH_MIN)
     CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
     HAL_Delay(SERVO_TEST_DELAY);
-    len = snprintf(test_pos, sizeof(test_pos), "Testing +45° for X, 0° for Y axis:\r\n");
-    HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-    adxl_read();
+    
+    #ifdef DEBUG
+      len = snprintf(test_pos, sizeof(test_pos), "Testing +45° for X, 0° for Y axis:\r\n");
+      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
+      adxl_read();
+    #endif
     CCR_X = PULSE_WIDTH_POS_90 + PULSE_WIDTH_OFFSET_X; // +90° or 225° (From PULSE_WIDTH_MIN)
     CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
     HAL_Delay(SERVO_TEST_DELAY);
-    len = snprintf(test_pos, sizeof(test_pos), "Testing +90° for X, 0° for Y axis:\r\n");
-    HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-    adxl_read();
+    
+    #ifdef DEBUG
+      len = snprintf(test_pos, sizeof(test_pos), "Testing +90° for X, 0° for Y axis:\r\n");
+      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
+      adxl_read();
+    #endif
 
     // Move Y-Axis
     CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
     CCR_Y = PULSE_WIDTH_NEG_90 + PULSE_WIDTH_OFFSET_Y; // -90° or 45° (From PULSE_WIDTH_MIN)
     HAL_Delay(SERVO_TEST_DELAY);
-    len = snprintf(test_pos, sizeof(test_pos), "Testing 0° for X, -90° for Y axis:\r\n");
-    HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-    adxl_read();
+    
+    #ifdef DEBUG
+      len = snprintf(test_pos, sizeof(test_pos), "Testing 0° for X, -90° for Y axis:\r\n");
+      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
+      adxl_read();
+    #endif
     CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
     CCR_Y = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_Y; // -45° or 90° (From PULSE_WIDTH_MIN)
     HAL_Delay(SERVO_TEST_DELAY);
-    len = snprintf(test_pos, sizeof(test_pos), "Testing 0° for X, -45° for Y axis:\r\n");
-    HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-    adxl_read();
+    
+    #ifdef DEBUG
+      len = snprintf(test_pos, sizeof(test_pos), "Testing 0° for X, -45° for Y axis:\r\n");
+      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
+      adxl_read();
+    #endif
     CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
     CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
     HAL_Delay(SERVO_TEST_DELAY);
-    len = snprintf(test_pos, sizeof(test_pos), "Testing 0° for X and Y axes:\r\n");
-    HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-    adxl_read();
+    
+    #ifdef DEBUG
+      len = snprintf(test_pos, sizeof(test_pos), "Testing 0° for X and Y axes:\r\n");
+      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
+      adxl_read();
+    #endif
     CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
     CCR_Y = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_Y; // +45° or 180° (From PULSE_WIDTH_MIN)
     HAL_Delay(SERVO_TEST_DELAY);
-    len = snprintf(test_pos, sizeof(test_pos), "Testing 0° for X, +45° for Y axis:\r\n");
-    HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-    adxl_read();
+    
+    #ifdef DEBUG
+      len = snprintf(test_pos, sizeof(test_pos), "Testing 0° for X, +45° for Y axis:\r\n");
+      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
+      adxl_read();
+    #endif
     CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
     CCR_Y = PULSE_WIDTH_POS_90 + PULSE_WIDTH_OFFSET_Y; // +90° or 225° (From PULSE_WIDTH_MIN)
     HAL_Delay(SERVO_TEST_DELAY);
-    len = snprintf(test_pos, sizeof(test_pos), "Testing 0° for X, +90° for Y axis:\r\n");
-    HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-    adxl_read();
+    
+    #ifdef DEBUG
+      len = snprintf(test_pos, sizeof(test_pos), "Testing 0° for X, +90° for Y axis:\r\n");
+      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
+      adxl_read();
+    #endif
 
     // Move Both Axes
     CCR_X = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_X; // -45°
     CCR_Y = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_Y; // -45°
     HAL_Delay(SERVO_TEST_DELAY);
-    len = snprintf(test_pos, sizeof(test_pos), "Testing -45° for X and Y axes:\r\n");
-    HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-    adxl_read();
+    
+    #ifdef DEBUG
+      len = snprintf(test_pos, sizeof(test_pos), "Testing -45° for X and Y axes:\r\n");
+      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
+      adxl_read();
+    #endif
     CCR_X = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_X; // +45°
     CCR_Y = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_Y; // +45°
     HAL_Delay(SERVO_TEST_DELAY);
-    len = snprintf(test_pos, sizeof(test_pos), "Testing +45° for X and Y axes:\r\n");
-    HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-    adxl_read();
+    
+    #ifdef DEBUG
+      len = snprintf(test_pos, sizeof(test_pos), "Testing +45° for X and Y axes:\r\n");
+      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
+      adxl_read();
+    #endif
     CCR_X = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_X; // +45°
     CCR_Y = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_Y; // -45°
     HAL_Delay(SERVO_TEST_DELAY);
-    len = snprintf(test_pos, sizeof(test_pos), "Testing +45° for X, -45° for Y axis:\r\n");
-    HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-    adxl_read();
+    
+    #ifdef DEBUG
+      len = snprintf(test_pos, sizeof(test_pos), "Testing +45° for X, -45° for Y axis:\r\n");
+      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
+      adxl_read();
+    #endif
     CCR_X = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_X; // -45°
     CCR_Y = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_Y; // +45°
     HAL_Delay(SERVO_TEST_DELAY);
-    len = snprintf(test_pos, sizeof(test_pos), "Testing -45° for X, +45° for Y axis:\r\n");
-    HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-    adxl_read();
+    
+    #ifdef DEBUG
+      len = snprintf(test_pos, sizeof(test_pos), "Testing -45° for X, +45° for Y axis:\r\n");
+      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
+      adxl_read();
+    #endif
     CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0°
     CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0°
     HAL_Delay(SERVO_TEST_DELAY);
-    len = snprintf(test_pos, sizeof(test_pos), "Testing 0° for X and Y axes:\r\n");
-    HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-    adxl_read();
+    
+    #ifdef DEBUG
+      len = snprintf(test_pos, sizeof(test_pos), "Testing 0° for X and Y axes:\r\n");
+      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
+      adxl_read();
+    #endif
   }
   return STATUS_SUCCESS;
 }

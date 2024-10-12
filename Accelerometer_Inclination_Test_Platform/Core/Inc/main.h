@@ -88,9 +88,28 @@ void Error_Handler(void);
 /* USER CODE BEGIN Private defines */
 
 #define RESERVED 0U
+#define BIT_RESET_MASK 0x00U
+#define BIT_0_MASK 0x01U
+#define BIT_1_MASK 0x02U
+#define BIT_2_MASK 0x04U
+#define BIT_3_MASK 0x08U
+#define BIT_4_MASK 0x10U
+#define BIT_5_MASK 0x20U
+#define BIT_6_MASK 0x40U
+#define BIT_7_MASK 0x80U
+
 #define CCR_X htim2.Instance->CCR1
 #define CCR_Y htim2.Instance->CCR2
 
+// BEGIN ADXL Register Map
+#define ADXL_DEVID 0x00U // Device ID
+#define ADXL_POWER_CTL 0x2DU // Power Mode Control
+#define ADXL_DATA_FORMAT 0x31U // Data Format
+#define ADXL_DATAX0 0x32U // Data Format
+// END ADXL Register Map
+#define ADXL_ADDRESS_SIZE 1 // Size of the ADXL address in bytes
+#define ADXL_DATA_SIZE 6 // Size of the ADXL data register in bytes
+#define ADXL_TIMEOUT 100 // SPI Timeout in ms
 #define ADXL_SCALE_FACTOR 0.00414
 
 #define BAUD_RATE 115200
@@ -98,27 +117,23 @@ void Error_Handler(void);
 #define RX_BUF_LEN (TX_BUF_LEN - 4U)
 #define INSTRUCTION_TIMEOUT 5000 // 5 sec
 #define INSTRUCTION_LEN 4U // Indicator + 3 Decimal Digits = 4, Ex: "{999"
-#define INSTRUCTION_MAX_VAL 1000 // Max possible number defined by INSTRUCTION_LEN + 1
+#define INSTRUCTION_CODE_T_MAX 1000 // Max possible number defined by INSTRUCTION_LEN + 1
 #define INSTRUCTION_PARAM_LEN 4U // Maximum user-enterable parameters per instruction
 
-#define TEST
+#define DEBUG // #ifdef TEST Code will only compile if TEST is defined in the header file
 
-#ifdef TEST // The following code will only be compiled if TEST is defined in the header file
-  #define PULSE_WIDTH_RANGE (PULSE_WIDTH_MAX - PULSE_WIDTH_MIN)
-  #define PULSE_WIDTH_MIN 500 // us
-  #define PULSE_WIDTH_NEG_90 (PULSE_WIDTH_0 - (PULSE_WIDTH_RANGE / 3))
-  #define PULSE_WIDTH_NEG_45 (PULSE_WIDTH_0 - (PULSE_WIDTH_RANGE / 6))
-  #define PULSE_WIDTH_0 ((PULSE_WIDTH_MAX + PULSE_WIDTH_MIN) / 2)
-  #define PULSE_WIDTH_POS_45 (PULSE_WIDTH_0 + (PULSE_WIDTH_RANGE / 6))
-  #define PULSE_WIDTH_POS_90 (PULSE_WIDTH_0 + (PULSE_WIDTH_RANGE / 3))
-  #define PULSE_WIDTH_MAX 2500 // us
-  #define PULSE_WIDTH_OFFSET_X -15
-  #define PULSE_WIDTH_OFFSET_Y -25
-  #define SERVO_TEST_DELAY 3000 // ms
+#define PULSE_WIDTH_RANGE (PULSE_WIDTH_MAX - PULSE_WIDTH_MIN)
+#define PULSE_WIDTH_MIN 500 // us
+#define PULSE_WIDTH_NEG_90 (PULSE_WIDTH_0 - (PULSE_WIDTH_RANGE / 3))
+#define PULSE_WIDTH_NEG_45 (PULSE_WIDTH_0 - (PULSE_WIDTH_RANGE / 6))
+#define PULSE_WIDTH_0 ((PULSE_WIDTH_MAX + PULSE_WIDTH_MIN) / 2)
+#define PULSE_WIDTH_POS_45 (PULSE_WIDTH_0 + (PULSE_WIDTH_RANGE / 6))
+#define PULSE_WIDTH_POS_90 (PULSE_WIDTH_0 + (PULSE_WIDTH_RANGE / 3))
+#define PULSE_WIDTH_MAX 2500 // us
+#define PULSE_WIDTH_OFFSET_X -15 // us
+#define PULSE_WIDTH_OFFSET_Y -25 // us
+#define SERVO_TEST_DELAY 3000 // ms
 
-  //! Alternate Servo Control Method
-  // #define SERVO_NEUTRAL 75.5
-#endif
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus
