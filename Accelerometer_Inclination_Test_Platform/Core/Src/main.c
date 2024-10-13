@@ -94,13 +94,13 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 
-setpoint_t setpoints[INSTRUCTION_CODE_T_MAX] = {{
+setpoint_t setpoints[INSTRUCTION_CODE_T_MAX + 1] = {{
   .position = 0,
   .speed = 0,
 }};
 
 struct setpoint_sequence {
-  setpoint_t setpoints[INSTRUCTION_CODE_T_MAX]; // Array of setpoint objects
+  setpoint_t setpoints[INSTRUCTION_CODE_T_MAX + 1]; // Array of setpoint objects
 };
 
 //* Accelerometer Read

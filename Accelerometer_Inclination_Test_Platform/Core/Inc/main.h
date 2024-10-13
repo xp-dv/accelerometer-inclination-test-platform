@@ -117,7 +117,7 @@ void Error_Handler(void);
 #define RX_BUF_LEN (TX_BUF_LEN - 4U)
 #define INSTRUCTION_TIMEOUT 5000 // 5 sec
 #define INSTRUCTION_LEN 4U // Indicator + 3 Decimal Digits = 4, Ex: "{999"
-#define INSTRUCTION_CODE_T_MAX 1000 // Max possible number defined by INSTRUCTION_LEN + 1
+#define INSTRUCTION_CODE_T_MAX 999 // Max possible instruction code value determined by INSTRUCTION_LEN
 #define INSTRUCTION_PARAM_LEN 4U // Maximum user-enterable parameters per instruction
 
 #define DEBUG // #ifdef TEST Code will only compile if TEST is defined in the header file
