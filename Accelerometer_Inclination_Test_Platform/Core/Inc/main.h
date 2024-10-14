@@ -101,6 +101,8 @@ void Error_Handler(void);
 #define CCR_X htim2.Instance->CCR1
 #define CCR_Y htim2.Instance->CCR2
 
+#define STARTUP_DELAY 2000
+
 // BEGIN ADXL Register Map
 #define ADXL_DEVID 0x00U // Device ID
 #define ADXL_POWER_CTL 0x2DU // Power Mode Control
@@ -113,14 +115,11 @@ void Error_Handler(void);
 #define ADXL_SCALE_FACTOR 0.00414
 
 #define BAUD_RATE 115200
+#define UART_TIMEOUT 200 // 200 ms
 #define TX_BUF_LEN 256U
 #define RX_BUF_LEN (TX_BUF_LEN - 4U)
-#define INSTRUCTION_TIMEOUT 5000 // 5 sec
-#define INSTRUCTION_LEN 4U // Indicator + 3 Decimal Digits = 4, Ex: "{999"
-#define INSTRUCTION_CODE_T_MAX 999 // Max possible instruction code value determined by INSTRUCTION_LEN
-#define INSTRUCTION_PARAM_LEN 4U // Maximum user-enterable parameters per instruction
-
-#define DEBUG // #ifdef TEST Code will only compile if TEST is defined in the header file
+#define INSTRUCTION_CODE_T_MAX 999 // Max possible instruction code value
+#define INSTRUCTION_MAX_ARGS 4U // Maximum user-enterable parameters per instruction
 
 #define PULSE_WIDTH_RANGE (PULSE_WIDTH_MAX - PULSE_WIDTH_MIN)
 #define PULSE_WIDTH_MIN 500 // us
@@ -133,6 +132,15 @@ void Error_Handler(void);
 #define PULSE_WIDTH_OFFSET_X -15 // us
 #define PULSE_WIDTH_OFFSET_Y -25 // us
 #define SERVO_TEST_DELAY 3000 // ms
+
+// #define DEBUG // #ifdef DEBUG Code will only compile if TEST is defined in the header file
+// TODO: Change debug_print() to print with UART
+#ifdef DEBUG
+  #define debug_print(...) printf(__VA_ARGS__)
+#endif
+#ifndef DEBUG
+  #define debug_print(...)
+#endif
 
 /* USER CODE END Private defines */
 

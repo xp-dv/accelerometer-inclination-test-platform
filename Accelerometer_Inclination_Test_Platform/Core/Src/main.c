@@ -22,18 +22,20 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdint.h>
+#include <ctype.h>
 #include <string.h>
 #include <math.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-typedef uint16_t* array_t; // Typedef set to fit numbers of size of INSTRUCTION_LEN
+typedef uint16_t instruction_size_t; // Typedef set to fit numbers of size INSTRUCTION_CODE_T_MAX
 
 typedef enum {
   STARTUP_STATE,
-  INSTRUCTION_STATE,
+  INSTRUCTION_WAIT_STATE,
   EDIT_SEQUENCE_STATE,
   RUN_STATE,
 } system_state_t;
@@ -63,9 +65,25 @@ typedef enum {
 
 typedef enum {
   //* General
-  STATUS_SUCCESS,
-  STATUS_UNSPECIFIED_ERROR,
+  STATUS_OK,
+  STATUS_PROCESSING,
+  //* Thrown by instruction handler
+  STATUS_ERR_NO_INDICATOR,
+  STATUS_ERR_NO_TERMINATOR,
+  STATUS_ERR_INVALID_INSTRUCTION,
+  STATUS_ERR_INSTRUCTION_OUT_OF_RANGE,
+  STATUS_ERR_TOO_MANY_INSTRUCTIONS,
+  STATUS_ERR_INVALID_ARG,
+  STATUS_ERR_ARG_OUT_OF_RANGE,
+  STATUS_ERR_TOO_MANY_ARGS,
 } status_code_t;
+
+typedef struct {
+  status_code_t status;
+  instruction_size_t code;
+  instruction_size_t arguments[INSTRUCTION_MAX_ARGS];
+  instruction_size_t arg_count;
+} instruction_t;
 
 typedef struct {
   float position; // In degrees
@@ -131,6 +149,85 @@ static void MX_TIM2_Init(void);
 /* USER CODE BEGIN 0 */
 
 //* Private Functions
+int strtoint(char* str) {
+  int num = 0;
+  if (str != NULL) {
+    while (*str != '\0') { // Terminates at NULL character
+      if (*str >= '0' && *str <= '9') {
+        num = num * 10U + (*str - '0'); // String (base 10) to int
+      } else {
+        return -1; // NaN
+      }
+      str++;
+    }
+  } else {
+    return -1; // NULL
+  }
+  return num;
+}
+
+instruction_t parse_instruction(char* parse_buf) {
+  instruction_t instruction = {
+    .status = STATUS_PROCESSING,
+    .code = RESERVED,
+    .arg_count = 0
+  };
+  char* indicator_p;
+  char* terminator_p;
+  char* digit_token_p;
+  int num;
+
+  // Find start and end characters
+  indicator_p = strchr(parse_buf, '{');
+  if (!indicator_p) {
+    instruction.status = STATUS_ERR_NO_INDICATOR;
+    return instruction;
+  }
+  terminator_p = strchr(parse_buf, '}');
+  if (!terminator_p) {
+    instruction.status = STATUS_ERR_NO_TERMINATOR;
+    return instruction;
+  }
+  ++indicator_p; // Increment past the start indicator '{'
+
+  // Parse instruction code
+  digit_token_p = strtok(indicator_p, "|}"); // Isolate digits by tokenizing the string between '{' and '}'
+  num = strtoint(digit_token_p);
+  if (num < 0) {
+    instruction.status = STATUS_ERR_INVALID_INSTRUCTION;
+    return instruction;
+  }
+  if (num > INSTRUCTION_CODE_T_MAX) {
+    instruction.status = STATUS_ERR_INSTRUCTION_OUT_OF_RANGE;
+    return instruction;
+  }
+  instruction.code = num;
+
+  // Parse arguments
+  while ((digit_token_p = strtok(NULL, "|}")) != NULL) {
+    if (*digit_token_p == '{') {
+      instruction.status = STATUS_ERR_TOO_MANY_INSTRUCTIONS;
+      return instruction;
+    }
+    num = strtoint(digit_token_p);
+    if (num < 0) {
+      instruction.status = STATUS_ERR_INVALID_ARG;
+      return instruction;
+    }
+    if (num > INSTRUCTION_CODE_T_MAX) {
+      instruction.status = STATUS_ERR_ARG_OUT_OF_RANGE;
+      return instruction;
+    }
+    if (instruction.arg_count >= INSTRUCTION_MAX_ARGS) {
+      instruction.status = STATUS_ERR_TOO_MANY_ARGS;
+      return instruction;
+    }
+    instruction.arguments[instruction.arg_count++] = num;
+  }
+
+  return instruction;
+}
+
 void adxl_tx(uint8_t address, uint8_t value) {
   uint8_t data[2];
   data[0] = address | BIT_6_MASK;  // Multibyte write enabled
@@ -150,7 +247,7 @@ void adxl_rx(uint8_t address) {
 }
 
 void adxl_init(void) {
-  HAL_Delay(2000);
+  HAL_Delay(STARTUP_DELAY);
   adxl_tx(ADXL_DATA_FORMAT, BIT_0_MASK);  // Data format range = +/- 4g
   adxl_tx(ADXL_POWER_CTL, BIT_RESET_MASK);  // Reset all bits
   adxl_tx(ADXL_POWER_CTL, BIT_3_MASK);  // Set power control mode to measure
@@ -164,8 +261,8 @@ void adxl_id(void) {
   #ifdef DEBUG
     char debug_buf[30];
     sprintf(debug_buf, "Device ID: 0x%X\r\n", device_id);
-    HAL_UART_Transmit(&huart1, (uint8_t*)debug_buf, strlen(debug_buf), ADXL_TIMEOUT);
-    HAL_UART_Transmit(&huart2, (uint8_t*)debug_buf, strlen(debug_buf), ADXL_TIMEOUT);
+    HAL_UART_Transmit(&huart1, (uint8_t*)debug_buf, strlen(debug_buf), UART_TIMEOUT);
+    HAL_UART_Transmit(&huart2, (uint8_t*)debug_buf, strlen(debug_buf), UART_TIMEOUT);
   #endif
 }
 
@@ -214,15 +311,15 @@ int move(float x_ang, float y_ang, int speed) {
    * Servo Control and Accelerometer Sampling Timer (Basically the system clock)
    * HAL_TIM_Base_Start(&htim1); // Clock (APB2) = 84 MHz. If Prescaler = (84 - 1) & Max Timer Count = (2^16 - 1), then f = 84 MHz / 84 = 1 MHz, T = 1 us, and Max Delay = (2^16 - 1) * T = 65.535 ms
    */
-  return STATUS_SUCCESS;
+  return STATUS_OK;
 }
 
 // ! Do not create stop() function here. Trigger an interrupt from the instruction_handler() for the stop instruction, instead.
 // Attempts to stop platform. If platform does not stop, reset stm board.
 
-int run_setpoint(array_t setpoint_i) {
+int run_setpoint(instruction_size_t setpoint_i) {
   // TODO: Same as move, but the setpoint information must be parsed from setpoints[]
-  return STATUS_SUCCESS;
+  return STATUS_OK;
 }
 
 int test_servos(void) {
@@ -381,7 +478,7 @@ int test_servos(void) {
       adxl_read();
     #endif
   }
-  return STATUS_SUCCESS;
+  return STATUS_OK;
 }
 
 //* Event Handlers
@@ -396,24 +493,54 @@ system_state_t startup_state_handler(void) {
   adxl_init();
   adxl_id();
 
-  return INSTRUCTION_STATE;
+  return INSTRUCTION_WAIT_STATE;
 }
 
-system_state_t instruction_state_handler(void) {
-  // Processes incoming instructions over UART
-  return INSTRUCTION_STATE;
+// Waits for UART instruction interrupt to trigger, then processes instruction
+system_state_t instruction_wait_state_handler(void) {
+  //* Receive instruction via interrupt
+  char uart_rx_buf[RX_BUF_LEN] = "{999|111|22|3|00004}"; // ! Here for testing
+  // TODO: uart_rx_buf Interrupt
+
+  //* Parse received instruction
+  char uart_tx_buf[TX_BUF_LEN] = { 0 };
+
+  // Copy UART buffer to prevent parse_instruction() from manipulating the original (due to strtok())
+  char* parse_buf = calloc((strlen(uart_rx_buf) + 1U), sizeof(char)); // Allocate memory based on size of text in buffer
+  strcpy(parse_buf, uart_rx_buf);
+
+  instruction_t instruction = parse_instruction(parse_buf);
+  free(parse_buf); // Free memory allocated by calloc()
+
+  //* Echo received instruction with status after parsing
+  sprintf(uart_tx_buf, "%s[%02d]", uart_rx_buf, (instruction.status % 100)); // Modulo truncates to 2 digits
+  HAL_UART_Transmit(&huart1, (uint8_t*)uart_tx_buf, sizeof(uart_tx_buf), UART_TIMEOUT);
+
+  //* Instruction switch
+  // TODO: switch () {}
+
+  // TODO: Change debug_print() to print with UART
+  debug_print("Echo: %s\n", uart_tx_buf);
+
+  debug_print("Instruction code: %d\n", instruction.code);
+  for (int i = 0; i < instruction.arg_count; ++i) {
+    debug_print("Argument %d: %d\n", i + 1, instruction.arguments[i]);
+  }
+  debug_print("Arg Count: %d\n", instruction.arg_count);
+
+  return INSTRUCTION_WAIT_STATE;
 }
 
 system_state_t edit_sequence_state_handler(void) {
   // Allow user to define and store a sequence
-  return INSTRUCTION_STATE;
+  return INSTRUCTION_WAIT_STATE;
 }
 
 system_state_t run_state_handler(void) {
   // Listen for stop commands
   // Run test setpoint
   // Calls move servo function
-  return INSTRUCTION_STATE;
+  return INSTRUCTION_WAIT_STATE;
 }
 
 /* USER CODE END 0 */
@@ -471,8 +598,8 @@ int main(void)
       case STARTUP_STATE:
         next_state_e = startup_state_handler();
         break;
-      case INSTRUCTION_STATE:
-        next_state_e = instruction_state_handler();
+      case INSTRUCTION_WAIT_STATE:
+        next_state_e = instruction_wait_state_handler();
         break;
       case EDIT_SEQUENCE_STATE:
         next_state_e = edit_sequence_state_handler();
