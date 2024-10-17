@@ -59,14 +59,16 @@ typedef enum {
   ADD_SETPOINT_TO_SEQUENCE_INSTRUCTION,
   CLEAR_SEQUENCE_INSTRUCTION,
   // Test Commands
-  TEST_SERVOS_INSTRUCTION = 998U,
+  TEST_SERVOS_INSTRUCTION = 997U,
+  TEST_LED_INSTRUCTION,
   TEST_ECHO_INSTRUCTION,
 } instruction_code_t;
 
 typedef enum {
   //* General
   STATUS_OK,
-  STATUS_PROCESSING,
+  //* Thrown by UART Callback
+  STATUS_ERR_UART_OF, // UART Buffer Overflow
   //* Thrown by instruction handler
   STATUS_ERR_NO_INDICATOR,
   STATUS_ERR_NO_TERMINATOR,
@@ -112,13 +114,14 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 
-setpoint_t setpoints[INSTRUCTION_CODE_T_MAX + 1] = {{
+//* User Data Structs (Saved in Flash Memory)
+setpoint_t setpoints[MAX_LEN] = {{
   .position = 0,
   .speed = 0,
 }};
 
 struct setpoint_sequence {
-  setpoint_t setpoints[INSTRUCTION_CODE_T_MAX + 1]; // Array of setpoint objects
+  setpoint_t setpoints[MAX_LEN]; // Array of setpoint objects
 };
 
 //* Accelerometer Read
@@ -131,6 +134,12 @@ float pos_x;
 float pos_y;
 float pos_x_last;
 float pos_y_last;
+
+//* UART
+char uart_rx_char[2]; // Stores Rx char and string terminator
+char uart_circ_buf[UART_RX_BUF_LEN]; // Circular Rx Buffer
+uint8_t instruction_flag = 0;
+status_code_t uart_it_status = STATUS_OK;
 
 /* USER CODE END PV */
 
@@ -148,7 +157,35 @@ static void MX_TIM2_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+//* Interrupt Callbacks
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
+  /**
+   * TODO: True circular buffer
+   * Should allow quick successive messages to fill buffer while waiting for CPU
+   * Segments commands by their terminator '}'
+   * Perhaps, uses two separate index pointers
+   */
+  static int i = 0;
+  if (instruction_flag == 0) {
+    uart_circ_buf[i] = uart_rx_char[0];
+    if (uart_circ_buf[i] == '}') {
+      instruction_flag = 1;
+      i = 0;
+    } else if (++i >= (sizeof(uart_circ_buf) - 1)) { // - 1 for NULL terminator
+      i = 0;
+      uart_it_status = STATUS_ERR_UART_OF; // Buffer Overflow
+    }
+  }
+  // UART Interrupt Rx Reactivate
+  HAL_UART_Receive_IT(&huart2, (uint8_t *)uart_rx_char, 1U); // Receive single char
+}
+
 //* Private Functions
+void uart_echo(char* tx_buf, const char* rx_buf, const int status) {
+  sprintf(tx_buf, "%s[%02d]", rx_buf, (status % 100)); // Modulo truncates to 2 digits
+  HAL_UART_Transmit(&huart2, (uint8_t*)tx_buf, strlen(tx_buf), UART_TX_TIMEOUT);
+}
+
 int strtoint(char* str) {
   int num = 0;
   if (str != NULL) {
@@ -168,7 +205,7 @@ int strtoint(char* str) {
 
 instruction_t parse_instruction(char* parse_buf) {
   instruction_t instruction = {
-    .status = STATUS_PROCESSING,
+    .status = STATUS_OK,
     .code = RESERVED,
     .arg_count = 0
   };
@@ -261,8 +298,8 @@ void adxl_id(void) {
   #ifdef DEBUG
     char debug_buf[30];
     sprintf(debug_buf, "Device ID: 0x%X\r\n", device_id);
-    HAL_UART_Transmit(&huart1, (uint8_t*)debug_buf, strlen(debug_buf), UART_TIMEOUT);
-    HAL_UART_Transmit(&huart2, (uint8_t*)debug_buf, strlen(debug_buf), UART_TIMEOUT);
+    HAL_UART_Transmit(&huart1, (uint8_t*)debug_buf, strlen(debug_buf), UART_TX_TIMEOUT);
+    HAL_UART_Transmit(&huart2, (uint8_t*)debug_buf, strlen(debug_buf), UART_TX_TIMEOUT);
   #endif
 }
 
@@ -483,51 +520,74 @@ int test_servos(void) {
 
 //* Event Handlers
 system_state_t startup_state_handler(void) {
-  // PWM
+  //* PWM
   // Internal Clock (HCLK) = 100 MHz. If Prescaler = (100 - 1) & Max Timer Count = (20000 - 1),
   // then f = 100 MHz / 100 = 1 MHz, T = 1 us, and PWM f = 1/(20000 * T) = 50 Hz
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
 
-  // Accelerometer
+  //* Accelerometer
   adxl_init();
   adxl_id();
+
+  //* UART
+  // Rx Interrupt Setup
+  HAL_UART_Receive_IT(&huart2, (uint8_t *)uart_rx_char, 1U); // Receive single char
 
   return INSTRUCTION_WAIT_STATE;
 }
 
-// Waits for UART instruction interrupt to trigger, then processes instruction
 system_state_t instruction_wait_state_handler(void) {
-  //* Receive instruction via interrupt
-  char uart_rx_buf[RX_BUF_LEN] = "{999|111|22|3|00004}"; // ! Here for testing
-  // TODO: uart_rx_buf Interrupt
+  static char uart_tx_buf[UART_TX_BUF_LEN];
+  static char uart_rx_buf[UART_RX_BUF_LEN];
 
-  //* Parse received instruction
-  char uart_tx_buf[TX_BUF_LEN] = { 0 };
+  //* Wait for UART instruction_flag to trigger via interrupt
+  if (instruction_flag) {
+    strcpy(uart_rx_buf, uart_circ_buf); // TODO: True circular buffer
 
-  // Copy UART buffer to prevent parse_instruction() from manipulating the original (due to strtok())
-  char* parse_buf = calloc((strlen(uart_rx_buf) + 1U), sizeof(char)); // Allocate memory based on size of text in buffer
-  strcpy(parse_buf, uart_rx_buf);
+    if (uart_it_status != STATUS_OK) {
 
-  instruction_t instruction = parse_instruction(parse_buf);
-  free(parse_buf); // Free memory allocated by calloc()
+      // Echo received instruction with error status
+      uart_echo(uart_tx_buf, uart_rx_buf, uart_it_status);
+      uart_it_status = STATUS_OK;
 
-  //* Echo received instruction with status after parsing
-  sprintf(uart_tx_buf, "%s[%02d]", uart_rx_buf, (instruction.status % 100)); // Modulo truncates to 2 digits
-  HAL_UART_Transmit(&huart1, (uint8_t*)uart_tx_buf, sizeof(uart_tx_buf), UART_TIMEOUT);
+    } else if (uart_it_status == STATUS_OK) {
 
-  //* Instruction switch
-  // TODO: switch () {}
+      //* Parse received instruction
+      // Copy UART buffer to prevent parse_instruction() from manipulating the original (due to strtok())
+      char* parse_buf = calloc((strlen(uart_rx_buf) + 1U), sizeof(char)); // Allocate memory based on size of text in buffer
+      strcpy(parse_buf, uart_rx_buf);
 
-  // TODO: Change debug_print() to print with UART
-  debug_print("Echo: %s\n", uart_tx_buf);
+      instruction_t instruction = parse_instruction(parse_buf);
+      free(parse_buf); // Free memory allocated by calloc()
 
-  debug_print("Instruction code: %d\n", instruction.code);
-  for (int i = 0; i < instruction.arg_count; ++i) {
-    debug_print("Argument %d: %d\n", i + 1, instruction.arguments[i]);
+      //* Echo received instruction with status after parsing
+      // TODO: Check valid instruction code and args with our set of instructions
+      uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
+
+      //* Instruction switch
+      // TODO: Finish all cases in instruction_code_t
+      switch (instruction.code) {
+        case TEST_LED_INSTRUCTION:
+          HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+          break;
+      }
+
+      // TODO: Change debug_print() to print with UART
+      debug_print("Echo: %s\n", uart_tx_buf);
+
+      debug_print("Instruction code: %d\n", instruction.code);
+      for (int i = 0; i < instruction.arg_count; ++i) {
+        debug_print("Argument %d: %d\n", i + 1, instruction.arguments[i]);
+      }
+      debug_print("Arg Count: %d\n", instruction.arg_count);
+
+    }
+    // Reset buffers and flags
+    memset(uart_circ_buf, 0, sizeof(uart_circ_buf)); // TODO: True circular buffer
+    memset(uart_tx_buf, 0, sizeof(uart_tx_buf));
+    instruction_flag = 0;
   }
-  debug_print("Arg Count: %d\n", instruction.arg_count);
-
   return INSTRUCTION_WAIT_STATE;
 }
 

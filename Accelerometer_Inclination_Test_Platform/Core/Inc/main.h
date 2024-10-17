@@ -66,10 +66,6 @@ void Error_Handler(void);
 #define PWM_X_GPIO_Port GPIOA
 #define PWM_Y_Pin GPIO_PIN_1
 #define PWM_Y_GPIO_Port GPIOA
-#define USART_TX_Pin GPIO_PIN_2
-#define USART_TX_GPIO_Port GPIOA
-#define USART_RX_Pin GPIO_PIN_3
-#define USART_RX_GPIO_Port GPIOA
 #define LD2_Pin GPIO_PIN_5
 #define LD2_GPIO_Port GPIOA
 #define ADXL_CS_Pin GPIO_PIN_10
@@ -115,10 +111,11 @@ void Error_Handler(void);
 #define ADXL_SCALE_FACTOR 0.00414
 
 #define BAUD_RATE 115200
-#define UART_TIMEOUT 200 // 200 ms
-#define TX_BUF_LEN 256U
-#define RX_BUF_LEN (TX_BUF_LEN - 4U)
-#define INSTRUCTION_CODE_T_MAX 999 // Max possible instruction code value
+#define UART_TX_TIMEOUT 50 // in ms
+#define UART_TX_BUF_LEN 128U
+#define UART_RX_BUF_LEN (UART_TX_BUF_LEN - 4U)
+#define INSTRUCTION_CODE_T_MAX 999U // Max possible instruction code value
+#define MAX_LEN (INSTRUCTION_CODE_T_MAX + 1) // Max possible instruction code value
 #define INSTRUCTION_MAX_ARGS 4U // Maximum user-enterable parameters per instruction
 
 #define PULSE_WIDTH_RANGE (PULSE_WIDTH_MAX - PULSE_WIDTH_MIN)
