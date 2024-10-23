@@ -80,7 +80,8 @@ void Error_Handler(void);
 #define ADXL_SDO_GPIO_Port GPIOB
 #define ADXL_SDA_Pin GPIO_PIN_5
 #define ADXL_SDA_GPIO_Port GPIOB
-
+#define FLASH_USER_START_ADDR ((uint32_t)0x08040000)
+#define SECTOR_NUMBER FLASH_SECTOR_6
 /* USER CODE BEGIN Private defines */
 
 #define RESERVED 0U

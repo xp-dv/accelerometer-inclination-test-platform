@@ -27,6 +27,7 @@
 #include <ctype.h>
 #include <string.h>
 #include <math.h>
+#include "stm32f4xx_hal.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -88,8 +89,9 @@ typedef struct {
 } instruction_t;
 
 typedef struct {
-  float position; // In degrees
-  float speed;    // Multiplier for the PID controller’s Proportional constant
+ instruction_size_t x; // X position in degrees
+  instruction_size_t y; // Y position in degrees
+  instruction_size_t speed;    // Multiplier for the PID controller’s Proportional constant
 } setpoint_t;
 
 /* USER CODE END PTD */
@@ -112,12 +114,17 @@ TIM_HandleTypeDef htim2;
 UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
 
+
+
+
+
 /* USER CODE BEGIN PV */
 
 //* User Data Structs (Saved in Flash Memory)
 setpoint_t setpoints[MAX_LEN] = {{
-  .position = 0,
-  .speed = 0,
+  .x = 0x45,
+  .y = 0x35,
+  .speed = 0x2,
 }};
 
 struct setpoint_sequence {
@@ -264,6 +271,8 @@ instruction_t parse_instruction(char* parse_buf) {
 
   return instruction;
 }
+
+
 
 void adxl_tx(uint8_t address, uint8_t value) {
   uint8_t data[2];
@@ -642,6 +651,61 @@ int main(void)
 
   //* Startup State
   system_state_t next_state_e = STARTUP_STATE;
+  //* Unlock flash memory to write
+  void SaveStructArrayToFlash(setpoint_t* array, uint32_t array_size) {
+      // Unlock flash memory for writing
+      HAL_FLASH_Unlock();
+
+      // Erase the flash memory sector where storing the struct
+      FLASH_EraseInitTypeDef erase_init_struct;
+      uint32_t page_error = 0;
+
+      erase_init_struct.TypeErase = FLASH_TYPEERASE_SECTORS;
+      erase_init_struct.Sector = SECTOR_NUMBER;
+      erase_init_struct.NbSectors = 1;
+      erase_init_struct.VoltageRange = FLASH_VOLTAGE_RANGE_3;
+
+      if (HAL_FLASHEx_Erase(&erase_init_struct, &page_error) != HAL_OK) {
+          // Handle error
+      }
+
+      // writing the struct array to flash memory
+      uint32_t start_address = FLASH_USER_START_ADDR;
+      for (uint32_t i = 0; i < array_size; i++) {
+          uint32_t address = start_address + (i * sizeof(setpoint_t));
+
+          if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, address, array[i].x) != HAL_OK) {
+              // Handle error
+          }
+          if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, address + 2, array[i].y) != HAL_OK) {
+              // Handle error
+          }
+          if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, address + 4, array[i].speed) != HAL_OK) {
+              // Handle error
+          }
+      }
+
+      // Lock flash memory after writing
+      HAL_FLASH_Lock();
+  }
+
+  //call the save to flash function
+  SaveStructArrayToFlash(setpoints, MAX_LEN);
+
+  void LoadStructArrayFromFlash(setpoint_t* array, uint32_t array_size) {
+      uint32_t start_address = FLASH_USER_START_ADDR;
+      for (uint32_t i = 0; i < array_size; i++) {
+          uint32_t address = start_address + (i * sizeof(setpoint_t));
+
+          array[i].x = *(__IO uint16_t*)address;
+          array[i].y = *(__IO uint16_t*)(address + 2);
+          array[i].speed = *(__IO uint16_t*)(address + 4);
+      }
+  }
+  // define the loaded-from-flash setpoints
+  setpoint_t loaded_setpoints[MAX_LEN];
+  // call the load-from-flash function
+  LoadStructArrayFromFlash(loaded_setpoints, MAX_LEN);
 
   /* USER CODE END 2 */
 

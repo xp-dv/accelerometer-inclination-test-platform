@@ -60,8 +60,8 @@ all: main-build
 main-build: Accelerometer_Inclination_Test_Platform.elf secondary-outputs
 
 # Tool invocations
-Accelerometer_Inclination_Test_Platform.elf Accelerometer_Inclination_Test_Platform.map: $(OBJS) $(USER_OBJS) C:\Users\XP\Documents\Senior\ Product\ Design\ Project\Accelerometer_Inclination_Test_Platform\STM32F411RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "Accelerometer_Inclination_Test_Platform.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\XP\Documents\Senior Product Design Project\Accelerometer_Inclination_Test_Platform\STM32F411RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Accelerometer_Inclination_Test_Platform.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -Wl,--start-group -lc -lm -Wl,--end-group
+Accelerometer_Inclination_Test_Platform.elf Accelerometer_Inclination_Test_Platform.map: $(OBJS) $(USER_OBJS) C:\Users\lucas\OneDrive\Desktop\Accel_193A_git\Accelerometer_Inclination_Test_Platform\STM32F411RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "Accelerometer_Inclination_Test_Platform.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\lucas\OneDrive\Desktop\Accel_193A_git\Accelerometer_Inclination_Test_Platform\STM32F411RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Accelerometer_Inclination_Test_Platform.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
