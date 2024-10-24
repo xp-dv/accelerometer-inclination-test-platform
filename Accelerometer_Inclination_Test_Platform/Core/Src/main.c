@@ -131,6 +131,9 @@ struct setpoint_sequence {
   setpoint_t setpoints[MAX_LEN]; // Array of setpoint objects
 };
 
+//Global array of setpoint sequence
+struct setpoint_sequence sequence;
+
 //* Accelerometer Read
 uint8_t adxl_rx_buf[ADXL_DATA_SIZE]; // The 6 bytes of ADXL data are stored here
 float x_g, y_g, z_g;
@@ -270,6 +273,35 @@ instruction_t parse_instruction(char* parse_buf) {
   }
 
   return instruction;
+}
+
+
+void add_setpoint(uint16_t x_ang, uint16_t y_ang, int speed) 
+{
+    //pull from flash
+    LoadStructArrayFromFlash(sequence.setpoints, MAX_LEN);
+
+    //current_index pointer is over max_len then we have reached max capacity. Return.
+    if (current_index >= MAX_LEN) 
+    {
+      return;
+    }
+
+    //Create an instance of setpoint_t to add x, y angles, and speed
+    setpoint_t new_setpoint;
+    new_setpoint.x = x_ang;
+    new_setpoint.y = y_ang;
+    new_setpoint.speed = speed;
+
+    //Add the new setpoint to the sequence
+    //Appending the setpoints to '0' spot in the array
+    sequence.setpoints[current_index] = new_setpoint;
+
+    //Increment the index of the array each time we append
+    current_index++;
+
+    //write back to flash after reading/pulling from flash
+    SaveStructArrayToFlash(sequence.setpoints, current_index);
 }
 
 
