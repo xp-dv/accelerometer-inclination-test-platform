@@ -28,6 +28,7 @@
 #include <string.h>
 #include <math.h>
 #include "stm32f4xx_hal.h"
+#include "main.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -150,6 +151,10 @@ char uart_rx_char[2]; // Stores Rx char and string terminator
 char uart_circ_buf[UART_RX_BUF_LEN]; // Circular Rx Buffer
 uint8_t instruction_flag = 0;
 status_code_t uart_it_status = STATUS_OK;
+
+//global index for array
+//points to next free spot in array
+static int current_index = 0;
 
 /* USER CODE END PV */
 
@@ -274,37 +279,6 @@ instruction_t parse_instruction(char* parse_buf) {
 
   return instruction;
 }
-
-
-void add_setpoint(uint16_t x_ang, uint16_t y_ang, int speed) 
-{
-    //pull from flash
-    LoadStructArrayFromFlash(sequence.setpoints, MAX_LEN);
-
-    //current_index pointer is over max_len then we have reached max capacity. Return.
-    if (current_index >= MAX_LEN) 
-    {
-      return;
-    }
-
-    //Create an instance of setpoint_t to add x, y angles, and speed
-    setpoint_t new_setpoint;
-    new_setpoint.x = x_ang;
-    new_setpoint.y = y_ang;
-    new_setpoint.speed = speed;
-
-    //Add the new setpoint to the sequence
-    //Appending the setpoints to '0' spot in the array
-    sequence.setpoints[current_index] = new_setpoint;
-
-    //Increment the index of the array each time we append
-    current_index++;
-
-    //write back to flash after reading/pulling from flash
-    SaveStructArrayToFlash(sequence.setpoints, current_index);
-}
-
-
 
 void adxl_tx(uint8_t address, uint8_t value) {
   uint8_t data[2];
@@ -740,7 +714,55 @@ int main(void)
   LoadStructArrayFromFlash(loaded_setpoints, MAX_LEN);
 
   /* USER CODE END 2 */
+  void add_setpoint(uint16_t x_ang, uint16_t y_ang, int speed) 
+  {
+    //current_index pointer is over max_len then we have reached max capacity. Return.
+    if (current_index >= MAX_LEN) 
+    {
+      return;
+    }
 
+    //pull from flash
+    LoadStructArrayFromFlash(sequence.setpoints, MAX_LEN);
+
+    //Create an instance of setpoint_t to add x, y angles, and speed
+    setpoint_t new_setpoint;
+    new_setpoint.x = x_ang;
+    new_setpoint.y = y_ang;
+    new_setpoint.speed = speed;
+
+    //Add the new setpoint to the sequence
+    //Appending the setpoints to '0' spot in the array
+    sequence.setpoints[current_index] = new_setpoint;
+
+    //Increment the index of the array each time we append
+    current_index++;
+
+    //write back to flash after reading/pulling from flash
+    SaveStructArrayToFlash(sequence.setpoints, current_index);
+
+    //setpoint_t stored_setpoint = sequence.setpoints[current_index - 1];
+
+    // Format the verification message
+    char buffer[100];
+
+    //debug purposes: Loops through sequence array and prints x,y angles and speed
+    int i = 0;
+    while(sequence.setpoints[i].x != '\0')
+    {
+      sprintf(buffer, "Setpoint added: x = %u, y = %u, speed = %d", sequence.setpoints[current_index - 1].x, sequence.setpoints[current_index - 1].y, sequence.setpoints[current_index - 1].speed);
+      i++;
+    }
+
+
+    // Transmit the message via STM UART NOT SERIAL CABLE. SERIAL CABLE = HUART1, STM32 = HUART2
+    HAL_UART_Transmit(&huart2, (uint8_t*)buffer, strlen(buffer), HAL_MAX_DELAY);
+    
+  }
+
+  //TEST SETPOINT FUNCTION
+  add_setpoint(10, 20, 100);
+  add_setpoint(20, 30 , 200);
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1) {
