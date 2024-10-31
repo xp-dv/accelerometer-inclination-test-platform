@@ -750,19 +750,92 @@ int main(void)
     int i = 0;
     while(sequence.setpoints[i].x != '\0')
     {
-      sprintf(buffer, "Setpoint added: x = %u, y = %u, speed = %d", sequence.setpoints[current_index - 1].x, sequence.setpoints[current_index - 1].y, sequence.setpoints[current_index - 1].speed);
+      sprintf(buffer, "Setpoint added: x = %u, y = %u, speed = %d\r\n", sequence.setpoints[current_index - 1].x, sequence.setpoints[current_index - 1].y, sequence.setpoints[current_index - 1].speed);
       i++;
     }
 
 
     // Transmit the message via STM UART NOT SERIAL CABLE. SERIAL CABLE = HUART1, STM32 = HUART2
     HAL_UART_Transmit(&huart2, (uint8_t*)buffer, strlen(buffer), HAL_MAX_DELAY);
-    
+
   }
 
-  //TEST SETPOINT FUNCTION
+/*void clear_setpoints()
+{
+  char buffer[100];
+
+
+  //clear setpoints array
+
+  int i = 0;
+
+  //runs until we have reached an unitialized spot in the array
+  while(i != current_index)
+  {
+    sequence.setpoints[i].x = 0;
+    sequence.setpoints[i].y = 0;
+    sequence.setpoints[i].speed = 0;
+
+    sprintf(buffer, "Setpoint cleared: x = %u, y = %u, speed = %d\r\n", sequence.setpoints[i].x, sequence.setpoints[i].y, sequence.setpoints[i].speed);
+    HAL_UART_Transmit(&huart2, (uint16_t*)buffer, strlen(buffer), HAL_MAX_DELAY);
+
+    i++;
+  }
+}*/
+
+/*void sequence_clear(int* setpoint_sequence, int length)
+{
+    for (int i = 0; i < length; i++)
+    {
+      //clear to 0
+      sequence.setpoints[*setpoint_sequence].x = 0;
+      sequence.setpoints[*setpoint_sequence].y = 0;
+      sequence.setpoints[*setpoint_sequence].speed = 0;
+    }
+}*/
+
+  void get_setpoint(uint16_t *setpoint_i)
+  {
+    char buffer[100];
+
+    // Pull from flash
+    LoadStructArrayFromFlash(sequence.setpoints, MAX_LEN);
+
+    // Check if the index is within a valid range
+    //65535 indicates out of bounds or no value in memory
+    if (*setpoint_i > MAX_LEN || sequence.setpoints[*setpoint_i].x == 65535)
+    {
+      sprintf(buffer, "IN ERROR CHECK IF STATEMENT Error: Invalid setpoint index %u\r\n", *setpoint_i);
+      HAL_UART_Transmit(&huart2, (uint16_t*)buffer, strlen(buffer), HAL_MAX_DELAY);
+      return;
+    }
+
+    // If valid, print the setpoint information
+    sprintf(buffer, "Setpoint retrieved: x = %u, y = %u, speed = %d\r\n", sequence.setpoints[*setpoint_i].x, sequence.setpoints[*setpoint_i].y, sequence.setpoints[*setpoint_i].speed);
+    HAL_UART_Transmit(&huart2, (uint16_t*)buffer, strlen(buffer), HAL_MAX_DELAY);
+  }
+
+
+
+  //TEST add_setpoint functino and get_setpoint SETPOINT FUNCTION
+
   add_setpoint(10, 20, 100);
   add_setpoint(20, 30 , 200);
+  add_setpoint(0, 0, 0);
+
+  uint16_t index = 0;
+  get_setpoint(&index);
+
+  index = 1;
+  get_setpoint(&index);
+
+  index = 2;
+  get_setpoint(&index);
+
+  index = 1001;
+  get_setpoint(&index);
+  //clear_setpoints();
+
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1) {
