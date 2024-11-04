@@ -348,6 +348,61 @@ void adxl_read(void) {
     }
   #endif
 }
+//* Flash Memory
+
+//* Write to Flash Memory
+ void SaveStructArrayToFlash(setpoint_t* array, uint32_t array_size) {
+     // Unlock flash memory for writing
+     HAL_FLASH_Unlock();
+
+     // Erase the flash memory sector where storing the struct
+     FLASH_EraseInitTypeDef erase_init_struct;
+     uint32_t page_error = 0;
+
+     erase_init_struct.TypeErase = FLASH_TYPEERASE_SECTORS;
+     erase_init_struct.Sector = SECTOR_NUMBER;
+     erase_init_struct.NbSectors = 1;
+     erase_init_struct.VoltageRange = FLASH_VOLTAGE_RANGE_3;
+
+     if (HAL_FLASHEx_Erase(&erase_init_struct, &page_error) != HAL_OK) {
+         // Handle error
+     }
+
+     // writing the struct array to flash memory
+     uint32_t start_address = FLASH_USER_START_ADDR;
+     for (uint32_t i = 0; i < array_size; i++) {
+         uint32_t address = start_address + (i * sizeof(setpoint_t));
+
+         if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, address, array[i].x) != HAL_OK) {
+             // Handle error
+         }
+         if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, address + 2, array[i].y) != HAL_OK) {
+             // Handle error
+         }
+         if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, address + 4, array[i].speed) != HAL_OK) {
+             // Handle error
+         }
+     }
+
+     // Lock flash memory after writing
+     HAL_FLASH_Lock();
+ }
+
+//* Load From Flash Memory
+ void LoadStructArrayFromFlash(setpoint_t* array, uint32_t array_size) {
+       uint32_t start_address = FLASH_USER_START_ADDR;
+       for (uint32_t i = 0; i < array_size; i++) {
+           uint32_t address = start_address + (i * sizeof(setpoint_t));
+
+           array[i].x = *(__IO uint16_t*)address;
+           array[i].y = *(__IO uint16_t*)(address + 2);
+           array[i].speed = *(__IO uint16_t*)(address + 4);
+       }
+   }
+
+
+
+
 
 //* Instruction Functions
 int move(float x_ang, float y_ang, int speed) {
@@ -657,61 +712,10 @@ int main(void)
 
   //* Startup State
   system_state_t next_state_e = STARTUP_STATE;
-  //* Unlock flash memory to write
-  void SaveStructArrayToFlash(setpoint_t* array, uint32_t array_size) {
-      // Unlock flash memory for writing
-      HAL_FLASH_Unlock();
-
-      // Erase the flash memory sector where storing the struct
-      FLASH_EraseInitTypeDef erase_init_struct;
-      uint32_t page_error = 0;
-
-      erase_init_struct.TypeErase = FLASH_TYPEERASE_SECTORS;
-      erase_init_struct.Sector = SECTOR_NUMBER;
-      erase_init_struct.NbSectors = 1;
-      erase_init_struct.VoltageRange = FLASH_VOLTAGE_RANGE_3;
-
-      if (HAL_FLASHEx_Erase(&erase_init_struct, &page_error) != HAL_OK) {
-          // Handle error
-      }
-
-      // writing the struct array to flash memory
-      uint32_t start_address = FLASH_USER_START_ADDR;
-      for (uint32_t i = 0; i < array_size; i++) {
-          uint32_t address = start_address + (i * sizeof(setpoint_t));
-
-          if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, address, array[i].x) != HAL_OK) {
-              // Handle error
-          }
-          if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, address + 2, array[i].y) != HAL_OK) {
-              // Handle error
-          }
-          if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, address + 4, array[i].speed) != HAL_OK) {
-              // Handle error
-          }
-      }
-
-      // Lock flash memory after writing
-      HAL_FLASH_Lock();
-  }
 
   //call the save to flash function
-  SaveStructArrayToFlash(setpoints, MAX_LEN);
 
-  void LoadStructArrayFromFlash(setpoint_t* array, uint32_t array_size) {
-      uint32_t start_address = FLASH_USER_START_ADDR;
-      for (uint32_t i = 0; i < array_size; i++) {
-          uint32_t address = start_address + (i * sizeof(setpoint_t));
 
-          array[i].x = *(__IO uint16_t*)address;
-          array[i].y = *(__IO uint16_t*)(address + 2);
-          array[i].speed = *(__IO uint16_t*)(address + 4);
-      }
-  }
-  // define the loaded-from-flash setpoints
-  setpoint_t loaded_setpoints[MAX_LEN];
-  // call the load-from-flash function
-  LoadStructArrayFromFlash(loaded_setpoints, MAX_LEN);
 
   /* USER CODE END 2 */
   void add_setpoint(uint16_t x_ang, uint16_t y_ang, int speed) 
