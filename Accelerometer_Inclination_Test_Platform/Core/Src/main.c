@@ -400,10 +400,6 @@ void adxl_read(void) {
        }
    }
 
-
-
-
-
 //* Instruction Functions
 int move(float x_ang, float y_ang, int speed) {
   /**
@@ -427,6 +423,89 @@ int move(float x_ang, float y_ang, int speed) {
 int run_setpoint(instruction_size_t setpoint_i) {
   // TODO: Same as move, but the setpoint information must be parsed from setpoints[]
   return STATUS_OK;
+}
+
+void add_setpoint(uint16_t x_ang, uint16_t y_ang, uint16_t speed)
+{
+  //pull from flash
+  LoadStructArrayFromFlash(sequence.setpoints, MAX_LEN);
+
+  //Create an instance of setpoint_t to add x, y angles, and speed
+  setpoint_t new_setpoint;
+  new_setpoint.x = x_ang;
+  new_setpoint.y = y_ang;
+  new_setpoint.speed = speed;
+
+  //Add the new setpoint to the sequence
+  //Appending the setpoints to '0' spot in the array
+  sequence.setpoints[current_index] = new_setpoint;
+
+  //Increment the index of the array each time we append
+  current_index++;
+
+  //write back to flash after reading/pulling from flash
+  SaveStructArrayToFlash(sequence.setpoints, current_index);
+
+  //char buffer[100];
+
+  //sprintf(buffer, "Setpoint added: x = %u, y = %u, speed = %d\r\n", sequence.setpoints[current_index - 1].x, sequence.setpoints[current_index - 1].y, sequence.setpoints[current_index - 1].speed);
+
+  //HAL_UART_Transmit(&huart2, (uint8_t*)buffer, strlen(buffer), HAL_MAX_DELAY);
+}
+
+/*void clear_setpoints()
+{
+  char buffer[100];
+
+
+  //clear setpoints array
+
+  int i = 0;
+
+  //runs until we have reached an unitialized spot in the array
+  while(i != current_index)
+  {
+    sequence.setpoints[i].x = 0;
+    sequence.setpoints[i].y = 0;
+    sequence.setpoints[i].speed = 0;
+
+    sprintf(buffer, "Setpoint cleared: x = %u, y = %u, speed = %d\r\n", sequence.setpoints[i].x, sequence.setpoints[i].y, sequence.setpoints[i].speed);
+    HAL_UART_Transmit(&huart2, (uint16_t*)buffer, strlen(buffer), HAL_MAX_DELAY);
+
+    i++;
+  }
+}*/
+
+/*void sequence_clear(int* setpoint_sequence, int length)
+{
+    for (int i = 0; i < length; i++)
+    {
+      //clear to 0
+      sequence.setpoints[*setpoint_sequence].x = 0;
+      sequence.setpoints[*setpoint_sequence].y = 0;
+      sequence.setpoints[*setpoint_sequence].speed = 0;
+    }
+}*/
+
+void get_setpoint(uint16_t *setpoint_i)
+{
+  char buffer[100];
+
+  // Pull from flash
+  LoadStructArrayFromFlash(sequence.setpoints, MAX_LEN);
+
+  // Check if the index is within a valid range
+  //65535 indicates out of bounds or no value in memory
+  if (*setpoint_i > MAX_LEN || sequence.setpoints[*setpoint_i].x == 65535)
+  {
+    sprintf(buffer, "Invalid setpoint index %u\r\n", *setpoint_i);
+    HAL_UART_Transmit(&huart2, (uint16_t*)buffer, strlen(buffer), HAL_MAX_DELAY);
+    return;
+  }
+
+  // If valid, print the setpoint information
+  sprintf(buffer, "Setpoint retrieved: x = %u, y = %u, speed = %d\r\n", sequence.setpoints[*setpoint_i].x, sequence.setpoints[*setpoint_i].y, sequence.setpoints[*setpoint_i].speed);
+  HAL_UART_Transmit(&huart2, (uint8_t*)buffer, strlen(buffer), HAL_MAX_DELAY);
 }
 
 int test_servos(void) {
@@ -638,10 +717,19 @@ system_state_t instruction_wait_state_handler(void) {
       //* Instruction switch
       // TODO: Finish all cases in instruction_code_t
       switch (instruction.code) {
-        case TEST_LED_INSTRUCTION:
-          HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
-          break;
+          case TEST_LED_INSTRUCTION:
+              HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+              break;
+          case ADD_SETPOINT_INSTRUCTION:
+              add_setpoint(instruction.arguments[0], instruction.arguments[1], instruction.arguments[2]);
+              break;
+          case GET_SETPOINT_INSTRUCTION:
+              get_setpoint(&instruction.arguments[0]);
+              break;
+          default:
+              break;
       }
+
 
       // TODO: Change debug_print() to print with UART
       debug_print("Echo: %s\n", uart_tx_buf);
@@ -713,132 +801,7 @@ int main(void)
   //* Startup State
   system_state_t next_state_e = STARTUP_STATE;
 
-  //call the save to flash function
-
-
-
   /* USER CODE END 2 */
-  void add_setpoint(uint16_t x_ang, uint16_t y_ang, int speed) 
-  {
-    //current_index pointer is over max_len then we have reached max capacity. Return.
-    if (current_index >= MAX_LEN) 
-    {
-      return;
-    }
-
-    //pull from flash
-    LoadStructArrayFromFlash(sequence.setpoints, MAX_LEN);
-
-    //Create an instance of setpoint_t to add x, y angles, and speed
-    setpoint_t new_setpoint;
-    new_setpoint.x = x_ang;
-    new_setpoint.y = y_ang;
-    new_setpoint.speed = speed;
-
-    //Add the new setpoint to the sequence
-    //Appending the setpoints to '0' spot in the array
-    sequence.setpoints[current_index] = new_setpoint;
-
-    //Increment the index of the array each time we append
-    current_index++;
-
-    //write back to flash after reading/pulling from flash
-    SaveStructArrayToFlash(sequence.setpoints, current_index);
-
-    //setpoint_t stored_setpoint = sequence.setpoints[current_index - 1];
-
-    // Format the verification message
-    char buffer[100];
-
-    //debug purposes: Loops through sequence array and prints x,y angles and speed
-    int i = 0;
-    while(sequence.setpoints[i].x != '\0')
-    {
-      sprintf(buffer, "Setpoint added: x = %u, y = %u, speed = %d\r\n", sequence.setpoints[current_index - 1].x, sequence.setpoints[current_index - 1].y, sequence.setpoints[current_index - 1].speed);
-      i++;
-    }
-
-
-    // Transmit the message via STM UART NOT SERIAL CABLE. SERIAL CABLE = HUART1, STM32 = HUART2
-    HAL_UART_Transmit(&huart2, (uint8_t*)buffer, strlen(buffer), HAL_MAX_DELAY);
-
-  }
-
-/*void clear_setpoints()
-{
-  char buffer[100];
-
-
-  //clear setpoints array
-
-  int i = 0;
-
-  //runs until we have reached an unitialized spot in the array
-  while(i != current_index)
-  {
-    sequence.setpoints[i].x = 0;
-    sequence.setpoints[i].y = 0;
-    sequence.setpoints[i].speed = 0;
-
-    sprintf(buffer, "Setpoint cleared: x = %u, y = %u, speed = %d\r\n", sequence.setpoints[i].x, sequence.setpoints[i].y, sequence.setpoints[i].speed);
-    HAL_UART_Transmit(&huart2, (uint16_t*)buffer, strlen(buffer), HAL_MAX_DELAY);
-
-    i++;
-  }
-}*/
-
-/*void sequence_clear(int* setpoint_sequence, int length)
-{
-    for (int i = 0; i < length; i++)
-    {
-      //clear to 0
-      sequence.setpoints[*setpoint_sequence].x = 0;
-      sequence.setpoints[*setpoint_sequence].y = 0;
-      sequence.setpoints[*setpoint_sequence].speed = 0;
-    }
-}*/
-
-  void get_setpoint(uint16_t *setpoint_i)
-  {
-    char buffer[100];
-
-    // Pull from flash
-    LoadStructArrayFromFlash(sequence.setpoints, MAX_LEN);
-
-    // Check if the index is within a valid range
-    //65535 indicates out of bounds or no value in memory
-    if (*setpoint_i > MAX_LEN || sequence.setpoints[*setpoint_i].x == 65535)
-    {
-      sprintf(buffer, "IN ERROR CHECK IF STATEMENT Error: Invalid setpoint index %u\r\n", *setpoint_i);
-      HAL_UART_Transmit(&huart2, (uint16_t*)buffer, strlen(buffer), HAL_MAX_DELAY);
-      return;
-    }
-
-    // If valid, print the setpoint information
-    sprintf(buffer, "Setpoint retrieved: x = %u, y = %u, speed = %d\r\n", sequence.setpoints[*setpoint_i].x, sequence.setpoints[*setpoint_i].y, sequence.setpoints[*setpoint_i].speed);
-    HAL_UART_Transmit(&huart2, (uint16_t*)buffer, strlen(buffer), HAL_MAX_DELAY);
-  }
-
-
-
-  //TEST add_setpoint functino and get_setpoint SETPOINT FUNCTION
-
-  add_setpoint(10, 20, 100);
-  add_setpoint(20, 30 , 200);
-  add_setpoint(0, 0, 0);
-
-  uint16_t index = 0;
-  get_setpoint(&index);
-
-  index = 1;
-  get_setpoint(&index);
-
-  index = 2;
-  get_setpoint(&index);
-
-  index = 1001;
-  get_setpoint(&index);
-  //clear_setpoints();
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
