@@ -33,7 +33,7 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-typedef uint16_t instruction_size_t; // Typedef set to fit numbers of size INSTRUCTION_CODE_T_MAX
+typedef uint16_t input_t; // Typedef set to fit numbers of size INPUT_T_MAX
 
 typedef enum {
   STARTUP_STATE,
@@ -48,20 +48,19 @@ typedef enum {
   MOVE_INSTRUCTION = 1,
   STOP_INSTRUCTION,
   // Setpoint Commands
-  ADD_SETPOINT_INSTRUCTION,
-  REMOVE_SETPOINT_INSTRUCTION,
-  CLEAR_SETPOINTS_INSTRUCTION,
-  FINISH_EDIT_SETPOINT_INSTRUCTION,
-  SET_SPEED_SETPOINT_INSTRUCTION,
   GET_SETPOINT_INSTRUCTION,
+  ADD_SETPOINT_INSTRUCTION,
+  CLEAR_SETPOINT_INSTRUCTION,
   GET_ALL_SETPOINTS_INSTRUCTION,
+  CLEAR_ALL_SETPOINTS_INSTRUCTION,
   // Sequence Commands
   GET_SEQUENCE_INSTRUCTION,
   RUN_SEQUENCE_INSTRUCTION,
-  ADD_SETPOINT_TO_SEQUENCE_INSTRUCTION,
+  ADD_TO_SEQUENCE_INSTRUCTION,
   CLEAR_SEQUENCE_INSTRUCTION,
   // Test Commands
-  TEST_SERVOS_INSTRUCTION = 997U,
+  TEST_SERVOS_INSTRUCTION = 996U,
+  TEST_FLASH_INSTRUCTION,
   TEST_LED_INSTRUCTION,
   TEST_ECHO_INSTRUCTION,
 } instruction_code_t;
@@ -78,21 +77,26 @@ typedef enum {
   STATUS_ERR_INSTRUCTION_OUT_OF_RANGE,
   STATUS_ERR_TOO_MANY_INSTRUCTIONS,
   STATUS_ERR_INVALID_ARG,
-  STATUS_ERR_ARG_OUT_OF_RANGE,
+  STATUS_ERR_MISSING_ARGS,
   STATUS_ERR_TOO_MANY_ARGS,
+  STATUS_ERR_ARG_OUT_OF_RANGE,
+  //* Thrown by user data functions
+  STATUS_ERR_NO_DATA,
+  STATUS_ERR_FLASH_WRITE_FAILED,
+  STATUS_ERR_SETPOINTS_FULL,
 } status_code_t;
 
 typedef struct {
   status_code_t status;
-  instruction_size_t code;
-  instruction_size_t arguments[INSTRUCTION_MAX_ARGS];
-  instruction_size_t arg_count;
+  input_t code;
+  input_t args[INSTRUCTION_MAX_ARGS];
+  input_t arg_count;
 } instruction_t;
 
-typedef struct {
- instruction_size_t x; // X position in degrees
-  instruction_size_t y; // Y position in degrees
-  instruction_size_t speed;    // Multiplier for the PID controller’s Proportional constant
+typedef struct setpoint {
+  input_t x; // X position in degrees
+  input_t y; // Y position in degrees
+  input_t speed; // Multiplier for the PID controller’s Proportional constant
 } setpoint_t;
 
 /* USER CODE END PTD */
@@ -115,25 +119,20 @@ TIM_HandleTypeDef htim2;
 UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
 
-
-
-
-
 /* USER CODE BEGIN PV */
 
-//* User Data Structs (Saved in Flash Memory)
+//* User Data Variables (Saved in Flash Memory)
 setpoint_t setpoints[MAX_LEN] = {{
-  .x = 0x45,
-  .y = 0x35,
-  .speed = 0x2,
+  .x = 0,
+  .y = 0,
+  .speed = 5,
 }};
 
-struct setpoint_sequence {
-  setpoint_t setpoints[MAX_LEN]; // Array of setpoint objects
-};
-
-//Global array of setpoint sequence
-struct setpoint_sequence sequence;
+setpoint_t sequence[MAX_LEN] = {{
+  .x = 0,
+  .y = 0,
+  .speed = 5,
+}};
 
 //* Accelerometer Read
 uint8_t adxl_rx_buf[ADXL_DATA_SIZE]; // The 6 bytes of ADXL data are stored here
@@ -151,10 +150,6 @@ char uart_rx_char[2]; // Stores Rx char and string terminator
 char uart_circ_buf[UART_RX_BUF_LEN]; // Circular Rx Buffer
 uint8_t instruction_flag = 0;
 status_code_t uart_it_status = STATUS_OK;
-
-//global index for array
-//points to next free spot in array
-static int current_index = 0;
 
 /* USER CODE END PV */
 
@@ -197,7 +192,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 
 //* Private Functions
 void uart_echo(char* tx_buf, const char* rx_buf, const int status) {
-  sprintf(tx_buf, "%s[%02d]", rx_buf, (status % 100)); // Modulo truncates to 2 digits
+  sprintf(tx_buf, "[%02u]%s\r\n", (status % 100), rx_buf); // Modulo truncates to 2 digits
   HAL_UART_Transmit(&huart2, (uint8_t*)tx_buf, strlen(tx_buf), UART_TX_TIMEOUT);
 }
 
@@ -249,14 +244,14 @@ instruction_t parse_instruction(char* parse_buf) {
     instruction.status = STATUS_ERR_INVALID_INSTRUCTION;
     return instruction;
   }
-  if (num > INSTRUCTION_CODE_T_MAX) {
+  if (num > INPUT_T_MAX) {
     instruction.status = STATUS_ERR_INSTRUCTION_OUT_OF_RANGE;
     return instruction;
   }
   instruction.code = num;
 
   // Parse arguments
-  while ((digit_token_p = strtok(NULL, "|}")) != NULL) {
+  while ((digit_token_p = strtok(NULL, " }")) != NULL) {
     if (*digit_token_p == '{') {
       instruction.status = STATUS_ERR_TOO_MANY_INSTRUCTIONS;
       return instruction;
@@ -266,7 +261,7 @@ instruction_t parse_instruction(char* parse_buf) {
       instruction.status = STATUS_ERR_INVALID_ARG;
       return instruction;
     }
-    if (num > INSTRUCTION_CODE_T_MAX) {
+    if (num > INPUT_T_MAX) {
       instruction.status = STATUS_ERR_ARG_OUT_OF_RANGE;
       return instruction;
     }
@@ -274,7 +269,7 @@ instruction_t parse_instruction(char* parse_buf) {
       instruction.status = STATUS_ERR_TOO_MANY_ARGS;
       return instruction;
     }
-    instruction.arguments[instruction.arg_count++] = num;
+    instruction.args[instruction.arg_count++] = num;
   }
 
   return instruction;
@@ -303,19 +298,7 @@ void adxl_init(void) {
   adxl_tx(ADXL_DATA_FORMAT, BIT_0_MASK);  // Data format range = +/- 4g
   adxl_tx(ADXL_POWER_CTL, BIT_RESET_MASK);  // Reset all bits
   adxl_tx(ADXL_POWER_CTL, BIT_3_MASK);  // Set power control mode to measure
-}
-
-void adxl_id(void) {
-  uint8_t device_id = 0;
-  adxl_rx(ADXL_DEVID); // Assuming this will populate 'adxl_rx_buf' with the Device ID
-  device_id = adxl_rx_buf[0]; // Assuming the ID is the first byte read
-
-  #ifdef DEBUG
-    char debug_buf[30];
-    sprintf(debug_buf, "Device ID: 0x%X\r\n", device_id);
-    HAL_UART_Transmit(&huart1, (uint8_t*)debug_buf, strlen(debug_buf), UART_TX_TIMEOUT);
-    HAL_UART_Transmit(&huart2, (uint8_t*)debug_buf, strlen(debug_buf), UART_TX_TIMEOUT);
-  #endif
+  adxl_rx(ADXL_DEVID); // Stores the SPI Device ID in adxl_rx_buf
 }
 
 void adxl_read(void) {
@@ -337,68 +320,7 @@ void adxl_read(void) {
   x_ang = x_ang * (180.0f / M_PI);
   y_ang = y_ang * (180.0f / M_PI);
   // z_ang = z_ang * (180.0f / M_PI);
-
-  #ifdef DEBUG
-    char debug_buf[64];
-    int len = snprintf(debug_buf, sizeof(debug_buf), "X(°)=%0.2f, Y(°)=%0.2f, Z(g)=%0.2f\r\n", x_ang, y_ang, z_g);
-    if (len > 0 && len < sizeof(debug_buf)) {
-      HAL_Delay(200); //*TODO Remove this delay when sample timer has been implemented
-      HAL_UART_Transmit(&huart1, (uint8_t*)debug_buf, len, HAL_MAX_DELAY);
-      HAL_UART_Transmit(&huart2, (uint8_t*)debug_buf, len, HAL_MAX_DELAY);
-    }
-  #endif
 }
-//* Flash Memory
-
-//* Write to Flash Memory
- void SaveStructArrayToFlash(setpoint_t* array, uint32_t array_size) {
-     // Unlock flash memory for writing
-     HAL_FLASH_Unlock();
-
-     // Erase the flash memory sector where storing the struct
-     FLASH_EraseInitTypeDef erase_init_struct;
-     uint32_t page_error = 0;
-
-     erase_init_struct.TypeErase = FLASH_TYPEERASE_SECTORS;
-     erase_init_struct.Sector = SECTOR_NUMBER;
-     erase_init_struct.NbSectors = 1;
-     erase_init_struct.VoltageRange = FLASH_VOLTAGE_RANGE_3;
-
-     if (HAL_FLASHEx_Erase(&erase_init_struct, &page_error) != HAL_OK) {
-         // Handle error
-     }
-
-     // writing the struct array to flash memory
-     uint32_t start_address = FLASH_USER_START_ADDR;
-     for (uint32_t i = 0; i < array_size; i++) {
-         uint32_t address = start_address + (i * sizeof(setpoint_t));
-
-         if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, address, array[i].x) != HAL_OK) {
-             // Handle error
-         }
-         if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, address + 2, array[i].y) != HAL_OK) {
-             // Handle error
-         }
-         if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, address + 4, array[i].speed) != HAL_OK) {
-             // Handle error
-         }
-     }
-
-     // Lock flash memory after writing
-     HAL_FLASH_Lock();
- }
-
-//* Load From Flash Memory
- void LoadStructArrayFromFlash(setpoint_t* array, uint32_t array_size) {
-       uint32_t start_address = FLASH_USER_START_ADDR;
-       for (uint32_t i = 0; i < array_size; i++) {
-           uint32_t address = start_address + (i * sizeof(setpoint_t));
-
-           array[i].x = *(__IO uint16_t*)address;
-           array[i].y = *(__IO uint16_t*)(address + 2);
-           array[i].speed = *(__IO uint16_t*)(address + 4);
-       }
-   }
 
 //* Instruction Functions
 int move(float x_ang, float y_ang, int speed) {
@@ -420,250 +342,272 @@ int move(float x_ang, float y_ang, int speed) {
 // ! Do not create stop() function here. Trigger an interrupt from the instruction_handler() for the stop instruction, instead.
 // Attempts to stop platform. If platform does not stop, reset stm board.
 
-int run_setpoint(instruction_size_t setpoint_i) {
+status_code_t get_setpoint(input_t index) {
+  // Get setpoint data
+  setpoint_t* setpoint = (void*)(FLASH_USER_START_ADDR + (sizeof(setpoint_t) * index));
+
+  // Check if requested setpoint contains data
+  if (setpoint->x == FLASH_EMPTY && setpoint->x == FLASH_EMPTY && setpoint->x == FLASH_EMPTY) {
+    return STATUS_ERR_NO_DATA;
+  }
+
+  // Transmit setpoint data
+  char uart_tx_buf[UART_TX_BUF_LEN];
+  sprintf(uart_tx_buf, "{%03u %03u %03u}\r\n", (setpoint->x % 1000), (setpoint->y % 1000), (setpoint->speed % 1000));
+  HAL_UART_Transmit(&huart2, (uint8_t*)uart_tx_buf, strlen(uart_tx_buf), UART_TX_TIMEOUT);
+
+  return STATUS_OK;
+}
+
+status_code_t add_setpoint(input_t x_ang, input_t y_ang, input_t speed) {
+  // Get address and index of last setpoint
+  setpoint_t* setpoint = (void*)(FLASH_USER_START_ADDR);
+  input_t index = 0;
+  while(index <= INPUT_T_MAX) {
+    if (setpoint->x == FLASH_EMPTY && setpoint->y == FLASH_EMPTY && setpoint->speed == FLASH_EMPTY) {
+      break;
+    }
+    if (index == INPUT_T_MAX) {
+      return STATUS_ERR_SETPOINTS_FULL;
+    }
+    ++setpoint;
+    ++index;
+  }
+
+  // Unlock flash memory to enable writing
+  HAL_FLASH_Unlock();
+
+  // Write the array to flash memory
+  if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(setpoint->x)), x_ang) != HAL_OK) {
+    HAL_FLASH_Lock();
+    return STATUS_ERR_FLASH_WRITE_FAILED;
+  }
+  if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(setpoint->y)), y_ang) != HAL_OK) {
+    HAL_FLASH_Lock();
+    return STATUS_ERR_FLASH_WRITE_FAILED;
+  }
+  if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(setpoint->speed)), speed) != HAL_OK) {
+    HAL_FLASH_Lock();
+    return STATUS_ERR_FLASH_WRITE_FAILED;
+  }
+
+  // Lock flash memory after writing
+  HAL_FLASH_Lock();
+
+  return STATUS_OK;
+}
+
+status_code_t get_all_setpoints(void) {
+  setpoint_t* setpoint = (void*)(FLASH_USER_START_ADDR);
+  input_t index = 0;
+  char uart_tx_buf[UART_TX_BUF_LEN];
+
+  // Transmit start indicator and first setpoint index
+  sprintf(uart_tx_buf, "{000");
+  HAL_UART_Transmit(&huart2, (uint8_t*)uart_tx_buf, strlen(uart_tx_buf), UART_TX_TIMEOUT);
+  while(index <= INPUT_T_MAX) {
+    // Stop when next setpoint is empty or when limit is reached
+    if (setpoint->x == FLASH_EMPTY && setpoint->y == FLASH_EMPTY && setpoint->speed == FLASH_EMPTY) {
+      break;
+    }
+    if (index == INPUT_T_MAX) {
+      break;
+    }
+
+    // Create new packet every 10 setpoints
+    if (index > 0 && (index % 10U) == 0) {
+      sprintf(uart_tx_buf, "}\r\n{%03u", (index % 1000U));
+      HAL_UART_Transmit(&huart2, (uint8_t*)uart_tx_buf, strlen(uart_tx_buf), UART_TX_TIMEOUT);
+    }
+
+    // Transmit setpoint data
+    sprintf(uart_tx_buf, "|%03u %03u %03u", (setpoint->x % 1000U), (setpoint->y % 1000U), (setpoint->speed % 1000U));
+    HAL_UART_Transmit(&huart2, (uint8_t*)uart_tx_buf, strlen(uart_tx_buf), UART_TX_TIMEOUT);
+
+    // Increment setpoint and index
+    ++setpoint;
+    ++index;
+  }
+  // Transmit terminator
+  sprintf(uart_tx_buf, "}\r\n");
+  HAL_UART_Transmit(&huart2, (uint8_t*)uart_tx_buf, strlen(uart_tx_buf), UART_TX_TIMEOUT);
+
+  return STATUS_OK;
+}
+
+status_code_t clear_all_setpoints(void) {
+  // Unlock flash memory to enable writing
+  HAL_FLASH_Unlock();
+
+  FLASH_EraseInitTypeDef flash_erase_setup = {
+    .TypeErase = FLASH_TYPEERASE_SECTORS,
+    .Sector = SECTOR_NUMBER,
+    .NbSectors = 1,
+    .VoltageRange = FLASH_VOLTAGE_RANGE_3,
+  };
+  uint32_t sector_error = 0;
+
+  if (HAL_FLASHEx_Erase(&flash_erase_setup, &sector_error) != HAL_OK) {
+    return STATUS_ERR_FLASH_WRITE_FAILED;
+  }
+
+  // Lock flash memory after writing
+  HAL_FLASH_Lock();
+
+  return STATUS_OK;
+}
+
+status_code_t run_setpoint(input_t index) {
   // TODO: Same as move, but the setpoint information must be parsed from setpoints[]
   return STATUS_OK;
 }
 
-void add_setpoint(uint16_t x_ang, uint16_t y_ang, uint16_t speed)
-{
-  //pull from flash
-  LoadStructArrayFromFlash(sequence.setpoints, MAX_LEN);
+status_code_t test_servos(void) {
+  // TODO: Change test printout to {X Y} format
+  char test_buf[UART_TX_BUF_LEN];
 
-  //Create an instance of setpoint_t to add x, y angles, and speed
-  setpoint_t new_setpoint;
-  new_setpoint.x = x_ang;
-  new_setpoint.y = y_ang;
-  new_setpoint.speed = speed;
+  // Center Platform
+  sprintf(test_buf, "Testing 0° for X and Y axes:\r\n");
+  HAL_UART_Transmit(&huart2, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+  adxl_read();
+  CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0°
+  CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0°
+  HAL_Delay(SERVO_TEST_DELAY);
+  
+  // Move X-Axis
+  CCR_X = PULSE_WIDTH_NEG_90 + PULSE_WIDTH_OFFSET_X; // -90° or 45° (From PULSE_WIDTH_MIN)
+  CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
+  HAL_Delay(SERVO_TEST_DELAY);
+  
+  sprintf(test_buf, "Testing -90° for X, 0° for Y axis:\r\n");
+  HAL_UART_Transmit(&huart2, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+  adxl_read();
+  CCR_X = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_X; // -45° or 90° (From PULSE_WIDTH_MIN)
+  CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
+  HAL_Delay(SERVO_TEST_DELAY);
+  
+  sprintf(test_buf, "Testing -45° for X, 0° for Y axis:\r\n");
+  HAL_UART_Transmit(&huart2, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+  adxl_read();
+  CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
+  CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
+  HAL_Delay(SERVO_TEST_DELAY);
+  
+  sprintf(test_buf, "Testing 0° for X and Y axes:\r\n");
+  HAL_UART_Transmit(&huart2, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+  adxl_read();
+  CCR_X = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_X; // +45° or 180° (From PULSE_WIDTH_MIN)
+  CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
+  HAL_Delay(SERVO_TEST_DELAY);
+  
+  sprintf(test_buf, "Testing +45° for X, 0° for Y axis:\r\n");
+  HAL_UART_Transmit(&huart2, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+  adxl_read();
+  CCR_X = PULSE_WIDTH_POS_90 + PULSE_WIDTH_OFFSET_X; // +90° or 225° (From PULSE_WIDTH_MIN)
+  CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
+  HAL_Delay(SERVO_TEST_DELAY);
+  
+  sprintf(test_buf, "Testing +90° for X, 0° for Y axis:\r\n");
+  HAL_UART_Transmit(&huart2, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+  adxl_read();
 
-  //Add the new setpoint to the sequence
-  //Appending the setpoints to '0' spot in the array
-  sequence.setpoints[current_index] = new_setpoint;
+  // Move Y-Axis
+  CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
+  CCR_Y = PULSE_WIDTH_NEG_90 + PULSE_WIDTH_OFFSET_Y; // -90° or 45° (From PULSE_WIDTH_MIN)
+  HAL_Delay(SERVO_TEST_DELAY);
+  
+  sprintf(test_buf, "Testing 0° for X, -90° for Y axis:\r\n");
+  HAL_UART_Transmit(&huart2, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+  adxl_read();
+  CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
+  CCR_Y = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_Y; // -45° or 90° (From PULSE_WIDTH_MIN)
+  HAL_Delay(SERVO_TEST_DELAY);
+  
+  sprintf(test_buf, "Testing 0° for X, -45° for Y axis:\r\n");
+  HAL_UART_Transmit(&huart2, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+  adxl_read();
+  CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
+  CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
+  HAL_Delay(SERVO_TEST_DELAY);
+  
+  sprintf(test_buf, "Testing 0° for X and Y axes:\r\n");
+  HAL_UART_Transmit(&huart2, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+  adxl_read();
+  CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
+  CCR_Y = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_Y; // +45° or 180° (From PULSE_WIDTH_MIN)
+  HAL_Delay(SERVO_TEST_DELAY);
+  
+  sprintf(test_buf, "Testing 0° for X, +45° for Y axis:\r\n");
+  HAL_UART_Transmit(&huart2, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+  adxl_read();
+  CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
+  CCR_Y = PULSE_WIDTH_POS_90 + PULSE_WIDTH_OFFSET_Y; // +90° or 225° (From PULSE_WIDTH_MIN)
+  HAL_Delay(SERVO_TEST_DELAY);
+  
+  sprintf(test_buf, "Testing 0° for X, +90° for Y axis:\r\n");
+  HAL_UART_Transmit(&huart2, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+  adxl_read();
 
-  //Increment the index of the array each time we append
-  current_index++;
+  // Move Both Axes
+  CCR_X = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_X; // -45°
+  CCR_Y = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_Y; // -45°
+  HAL_Delay(SERVO_TEST_DELAY);
+  
+  sprintf(test_buf, "Testing -45° for X and Y axes:\r\n");
+  HAL_UART_Transmit(&huart2, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+  adxl_read();
+  CCR_X = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_X; // +45°
+  CCR_Y = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_Y; // +45°
+  HAL_Delay(SERVO_TEST_DELAY);
+  
+  sprintf(test_buf, "Testing +45° for X and Y axes:\r\n");
+  HAL_UART_Transmit(&huart2, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+  adxl_read();
+  CCR_X = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_X; // +45°
+  CCR_Y = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_Y; // -45°
+  HAL_Delay(SERVO_TEST_DELAY);
+  
+  sprintf(test_buf, "Testing +45° for X, -45° for Y axis:\r\n");
+  HAL_UART_Transmit(&huart2, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+  adxl_read();
+  CCR_X = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_X; // -45°
+  CCR_Y = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_Y; // +45°
+  HAL_Delay(SERVO_TEST_DELAY);
+  
+  sprintf(test_buf, "Testing -45° for X, +45° for Y axis:\r\n");
+  HAL_UART_Transmit(&huart2, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+  adxl_read();
+  CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0°
+  CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0°
+  HAL_Delay(SERVO_TEST_DELAY);
+  
+  sprintf(test_buf, "Testing 0° for X and Y axes:\r\n");
+  HAL_UART_Transmit(&huart2, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+  adxl_read();
 
-  //write back to flash after reading/pulling from flash
-  SaveStructArrayToFlash(sequence.setpoints, current_index);
-
-  //char buffer[100];
-
-  //sprintf(buffer, "Setpoint added: x = %u, y = %u, speed = %d\r\n", sequence.setpoints[current_index - 1].x, sequence.setpoints[current_index - 1].y, sequence.setpoints[current_index - 1].speed);
-
-  //HAL_UART_Transmit(&huart2, (uint8_t*)buffer, strlen(buffer), HAL_MAX_DELAY);
+  return STATUS_OK;
 }
 
-/*void clear_setpoints()
-{
-  char buffer[100];
+status_code_t test_flash(void) {
+  status_code_t status;
 
-
-  //clear setpoints array
-
-  int i = 0;
-
-  //runs until we have reached an unitialized spot in the array
-  while(i != current_index)
-  {
-    sequence.setpoints[i].x = 0;
-    sequence.setpoints[i].y = 0;
-    sequence.setpoints[i].speed = 0;
-
-    sprintf(buffer, "Setpoint cleared: x = %u, y = %u, speed = %d\r\n", sequence.setpoints[i].x, sequence.setpoints[i].y, sequence.setpoints[i].speed);
-    HAL_UART_Transmit(&huart2, (uint16_t*)buffer, strlen(buffer), HAL_MAX_DELAY);
-
-    i++;
+  status = clear_all_setpoints();
+  if (status != STATUS_OK) {
+    return status;
   }
-}*/
 
-/*void sequence_clear(int* setpoint_sequence, int length)
-{
-    for (int i = 0; i < length; i++)
-    {
-      //clear to 0
-      sequence.setpoints[*setpoint_sequence].x = 0;
-      sequence.setpoints[*setpoint_sequence].y = 0;
-      sequence.setpoints[*setpoint_sequence].speed = 0;
+  for (int i = 0; i < 300; i += 3) {
+    status = add_setpoint(i, (i + 1), (i + 2));
+    if (status != STATUS_OK) {
+      return status;
     }
-}*/
-
-void get_setpoint(uint16_t *setpoint_i)
-{
-  char buffer[100];
-
-  // Pull from flash
-  LoadStructArrayFromFlash(sequence.setpoints, MAX_LEN);
-
-  // Check if the index is within a valid range
-  //65535 indicates out of bounds or no value in memory
-  if (*setpoint_i > MAX_LEN || sequence.setpoints[*setpoint_i].x == 65535)
-  {
-    sprintf(buffer, "Invalid setpoint index %u\r\n", *setpoint_i);
-    HAL_UART_Transmit(&huart2, (uint16_t*)buffer, strlen(buffer), HAL_MAX_DELAY);
-    return;
   }
 
-  // If valid, print the setpoint information
-  sprintf(buffer, "Setpoint retrieved: x = %u, y = %u, speed = %d\r\n", sequence.setpoints[*setpoint_i].x, sequence.setpoints[*setpoint_i].y, sequence.setpoints[*setpoint_i].speed);
-  HAL_UART_Transmit(&huart2, (uint8_t*)buffer, strlen(buffer), HAL_MAX_DELAY);
-}
-
-int test_servos(void) {
-  char test_pos[100];
-  int len;
-  if (HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin) == GPIO_PIN_RESET) { //! Needs to be polled
-    // Center Platform
-    CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0°
-    CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0°
-    HAL_Delay(SERVO_TEST_DELAY);
-    
-    #ifdef DEBUG
-      len = snprintf(test_pos, sizeof(test_pos), "Testing 0° for X and Y axes:\r\n");
-      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-      adxl_read();
-    #endif
-
-    // Move X-Axis
-    CCR_X = PULSE_WIDTH_NEG_90 + PULSE_WIDTH_OFFSET_X; // -90° or 45° (From PULSE_WIDTH_MIN)
-    CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
-    HAL_Delay(SERVO_TEST_DELAY);
-    
-    #ifdef DEBUG
-      len = snprintf(test_pos, sizeof(test_pos), "Testing -90° for X, 0° for Y axis:\r\n");
-      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-      adxl_read();
-    #endif
-    CCR_X = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_X; // -45° or 90° (From PULSE_WIDTH_MIN)
-    CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
-    HAL_Delay(SERVO_TEST_DELAY);
-    
-    #ifdef DEBUG
-      len = snprintf(test_pos, sizeof(test_pos), "Testing -45° for X, 0° for Y axis:\r\n");
-      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-      adxl_read();
-    #endif
-    CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
-    CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
-    HAL_Delay(SERVO_TEST_DELAY);
-    
-    #ifdef DEBUG
-      len = snprintf(test_pos, sizeof(test_pos), "Testing 0° for X and Y axes:\r\n");
-      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-      adxl_read();
-    #endif
-    CCR_X = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_X; // +45° or 180° (From PULSE_WIDTH_MIN)
-    CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
-    HAL_Delay(SERVO_TEST_DELAY);
-    
-    #ifdef DEBUG
-      len = snprintf(test_pos, sizeof(test_pos), "Testing +45° for X, 0° for Y axis:\r\n");
-      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-      adxl_read();
-    #endif
-    CCR_X = PULSE_WIDTH_POS_90 + PULSE_WIDTH_OFFSET_X; // +90° or 225° (From PULSE_WIDTH_MIN)
-    CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
-    HAL_Delay(SERVO_TEST_DELAY);
-    
-    #ifdef DEBUG
-      len = snprintf(test_pos, sizeof(test_pos), "Testing +90° for X, 0° for Y axis:\r\n");
-      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-      adxl_read();
-    #endif
-
-    // Move Y-Axis
-    CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
-    CCR_Y = PULSE_WIDTH_NEG_90 + PULSE_WIDTH_OFFSET_Y; // -90° or 45° (From PULSE_WIDTH_MIN)
-    HAL_Delay(SERVO_TEST_DELAY);
-    
-    #ifdef DEBUG
-      len = snprintf(test_pos, sizeof(test_pos), "Testing 0° for X, -90° for Y axis:\r\n");
-      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-      adxl_read();
-    #endif
-    CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
-    CCR_Y = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_Y; // -45° or 90° (From PULSE_WIDTH_MIN)
-    HAL_Delay(SERVO_TEST_DELAY);
-    
-    #ifdef DEBUG
-      len = snprintf(test_pos, sizeof(test_pos), "Testing 0° for X, -45° for Y axis:\r\n");
-      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-      adxl_read();
-    #endif
-    CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
-    CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
-    HAL_Delay(SERVO_TEST_DELAY);
-    
-    #ifdef DEBUG
-      len = snprintf(test_pos, sizeof(test_pos), "Testing 0° for X and Y axes:\r\n");
-      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-      adxl_read();
-    #endif
-    CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
-    CCR_Y = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_Y; // +45° or 180° (From PULSE_WIDTH_MIN)
-    HAL_Delay(SERVO_TEST_DELAY);
-    
-    #ifdef DEBUG
-      len = snprintf(test_pos, sizeof(test_pos), "Testing 0° for X, +45° for Y axis:\r\n");
-      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-      adxl_read();
-    #endif
-    CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
-    CCR_Y = PULSE_WIDTH_POS_90 + PULSE_WIDTH_OFFSET_Y; // +90° or 225° (From PULSE_WIDTH_MIN)
-    HAL_Delay(SERVO_TEST_DELAY);
-    
-    #ifdef DEBUG
-      len = snprintf(test_pos, sizeof(test_pos), "Testing 0° for X, +90° for Y axis:\r\n");
-      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-      adxl_read();
-    #endif
-
-    // Move Both Axes
-    CCR_X = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_X; // -45°
-    CCR_Y = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_Y; // -45°
-    HAL_Delay(SERVO_TEST_DELAY);
-    
-    #ifdef DEBUG
-      len = snprintf(test_pos, sizeof(test_pos), "Testing -45° for X and Y axes:\r\n");
-      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-      adxl_read();
-    #endif
-    CCR_X = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_X; // +45°
-    CCR_Y = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_Y; // +45°
-    HAL_Delay(SERVO_TEST_DELAY);
-    
-    #ifdef DEBUG
-      len = snprintf(test_pos, sizeof(test_pos), "Testing +45° for X and Y axes:\r\n");
-      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-      adxl_read();
-    #endif
-    CCR_X = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_X; // +45°
-    CCR_Y = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_Y; // -45°
-    HAL_Delay(SERVO_TEST_DELAY);
-    
-    #ifdef DEBUG
-      len = snprintf(test_pos, sizeof(test_pos), "Testing +45° for X, -45° for Y axis:\r\n");
-      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-      adxl_read();
-    #endif
-    CCR_X = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_X; // -45°
-    CCR_Y = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_Y; // +45°
-    HAL_Delay(SERVO_TEST_DELAY);
-    
-    #ifdef DEBUG
-      len = snprintf(test_pos, sizeof(test_pos), "Testing -45° for X, +45° for Y axis:\r\n");
-      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-      adxl_read();
-    #endif
-    CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0°
-    CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0°
-    HAL_Delay(SERVO_TEST_DELAY);
-    
-    #ifdef DEBUG
-      len = snprintf(test_pos, sizeof(test_pos), "Testing 0° for X and Y axes:\r\n");
-      HAL_UART_Transmit(&huart2, (uint8_t*)test_pos, len, HAL_MAX_DELAY);
-      adxl_read();
-    #endif
+  status = get_all_setpoints();
+  if (status != STATUS_OK) {
+    return status;
   }
+
   return STATUS_OK;
 }
 
@@ -677,7 +621,6 @@ system_state_t startup_state_handler(void) {
 
   //* Accelerometer
   adxl_init();
-  adxl_id();
 
   //* UART
   // Rx Interrupt Setup
@@ -710,36 +653,62 @@ system_state_t instruction_wait_state_handler(void) {
       instruction_t instruction = parse_instruction(parse_buf);
       free(parse_buf); // Free memory allocated by calloc()
 
-      //* Echo received instruction with status after parsing
-      // TODO: Check valid instruction code and args with our set of instructions
-      uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
+      //* Echo received instruction with status if error occurred
+      if (instruction.status != STATUS_OK) {
+        uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
+      } else {
+        //* Instruction switch
+        // TODO: Finish all cases in instruction_code_t
+        // TODO: Find more elegant implementation of arg_count check
+        switch (instruction.code) {
+        case GET_SETPOINT_INSTRUCTION:
+          if (instruction.arg_count < 1U) {
+            instruction.status = STATUS_ERR_MISSING_ARGS;
+          } else if (instruction.arg_count > 1U) {
+            instruction.status = STATUS_ERR_TOO_MANY_ARGS;
+          } else {
+            instruction.status = get_setpoint(instruction.args[0]);
+          }
+          uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
+          break;
+        case ADD_SETPOINT_INSTRUCTION:
+          if (instruction.arg_count < 3U) {
+            instruction.status = STATUS_ERR_MISSING_ARGS;
+          } else if (instruction.arg_count > 3U) {
+            instruction.status = STATUS_ERR_TOO_MANY_ARGS;
+          } else {
+            instruction.status = add_setpoint(instruction.args[0], instruction.args[1], instruction.args[2]);
+          }
+          // TODO: Consider echoing index after adding. Otherwise, user can use get_all_setpoints().
+          uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
+          break;
+        case GET_ALL_SETPOINTS_INSTRUCTION:
+          instruction.status = get_all_setpoints();
+          uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
+          break;
+        case CLEAR_ALL_SETPOINTS_INSTRUCTION:
+          instruction.status = clear_all_setpoints();
+          uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
+          break;
+        case TEST_FLASH_INSTRUCTION:
+          instruction.status = test_flash();
+          uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
+          break;
+        case TEST_LED_INSTRUCTION:
+          HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+          uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
+          break;
+        case TEST_ECHO_INSTRUCTION:
+          uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
+          break;
 
-      //* Instruction switch
-      // TODO: Finish all cases in instruction_code_t
-      switch (instruction.code) {
-          case TEST_LED_INSTRUCTION:
-              HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
-              break;
-          case ADD_SETPOINT_INSTRUCTION:
-              add_setpoint(instruction.arguments[0], instruction.arguments[1], instruction.arguments[2]);
-              break;
-          case GET_SETPOINT_INSTRUCTION:
-              get_setpoint(&instruction.arguments[0]);
-              break;
-          default:
-              break;
+        // Instruction not in list of instruction codes
+        default:
+          instruction.status = STATUS_ERR_INVALID_INSTRUCTION;
+          uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
+          break;
+        }
       }
-
-
-      // TODO: Change debug_print() to print with UART
-      debug_print("Echo: %s\n", uart_tx_buf);
-
-      debug_print("Instruction code: %d\n", instruction.code);
-      for (int i = 0; i < instruction.arg_count; ++i) {
-        debug_print("Argument %d: %d\n", i + 1, instruction.arguments[i]);
-      }
-      debug_print("Arg Count: %d\n", instruction.arg_count);
-
     }
     // Reset buffers and flags
     memset(uart_circ_buf, 0, sizeof(uart_circ_buf)); // TODO: True circular buffer
@@ -1124,7 +1093,7 @@ void assert_failed(uint8_t *file, uint32_t line)
 {
   /* USER CODE BEGIN 6 */
   /* User can add his own implementation to report the file name and line number,
-     ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
+     ex: printf("Wrong parameters value: file %s on line %u\r\n", file, line) */
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */

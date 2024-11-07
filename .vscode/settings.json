@@ -3,5 +3,8 @@
     "${workspaceFolder}/**"
   ],
   "editor.insertSpaces": true,
-  "editor.tabSize": 2
+  "editor.tabSize": 2,
+  "files.associations": {
+    "compare": "c"
+  }
 }

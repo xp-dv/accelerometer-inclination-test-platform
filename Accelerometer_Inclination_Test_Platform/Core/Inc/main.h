@@ -17,6 +17,7 @@
   ******************************************************************************
   */
 #pragma once
+
 /* USER CODE END Header */
 
 /* Define to prevent recursive inclusion -------------------------------------*/
@@ -95,6 +96,11 @@ void Error_Handler(void);
 #define BIT_6_MASK 0x40U
 #define BIT_7_MASK 0x80U
 
+#define FLASH_EMPTY 0xFFFF
+#define FLASH_SHIFT_X_ANG 0
+#define FLASH_SHIFT_Y_ANG (sizeof(input_t))
+#define FLASH_SHIFT_SPEED (sizeof(input_t) * 2U)
+
 #define CCR_X htim2.Instance->CCR1
 #define CCR_Y htim2.Instance->CCR2
 
@@ -114,9 +120,9 @@ void Error_Handler(void);
 #define BAUD_RATE 115200
 #define UART_TX_TIMEOUT 50 // in ms
 #define UART_TX_BUF_LEN 128U
-#define UART_RX_BUF_LEN (UART_TX_BUF_LEN - 4U)
-#define INSTRUCTION_CODE_T_MAX 999U // Max possible instruction code value
-#define MAX_LEN (INSTRUCTION_CODE_T_MAX + 1) // Max possible instruction code value
+#define UART_RX_BUF_LEN (UART_TX_BUF_LEN - 6U) // 6 bytes is size of status code extension
+#define INPUT_T_MAX 999U // Max possible instruction code value
+#define MAX_LEN (INPUT_T_MAX + 1U) // Max possible instruction code value
 #define INSTRUCTION_MAX_ARGS 4U // Maximum user-enterable parameters per instruction
 
 #define PULSE_WIDTH_RANGE (PULSE_WIDTH_MAX - PULSE_WIDTH_MIN)
@@ -131,14 +137,7 @@ void Error_Handler(void);
 #define PULSE_WIDTH_OFFSET_Y -25 // us
 #define SERVO_TEST_DELAY 3000 // ms
 
-// #define DEBUG // #ifdef DEBUG Code will only compile if TEST is defined in the header file
-// TODO: Change debug_print() to print with UART
-#ifdef DEBUG
-  #define debug_print(...) printf(__VA_ARGS__)
-#endif
-#ifndef DEBUG
-  #define debug_print(...)
-#endif
+// #define TEST // Code in #ifdef TEST will only compile if TEST is defined
 
 /* USER CODE END Private defines */
 
