@@ -81,7 +81,7 @@ typedef enum {
   STATUS_ERR_TOO_MANY_ARGS,
   STATUS_ERR_ARG_OUT_OF_RANGE,
   //* Thrown by user data functions
-  STATUS_ERR_NO_DATA,
+  STATUS_ERR_INVALID_SETPOINT,
   STATUS_ERR_FLASH_WRITE_FAILED,
   STATUS_ERR_SETPOINTS_FULL,
 } status_code_t;
@@ -348,7 +348,7 @@ status_code_t get_setpoint(input_t index) {
 
   // Check if requested setpoint contains data
   if (setpoint->x == FLASH_EMPTY && setpoint->x == FLASH_EMPTY && setpoint->x == FLASH_EMPTY) {
-    return STATUS_ERR_NO_DATA;
+    return STATUS_ERR_INVALID_SETPOINT;
   }
 
   // Transmit setpoint data
@@ -462,12 +462,13 @@ status_code_t run_setpoint(input_t index) {
   return STATUS_OK;
 }
 
-status_code_t clear_setpoint(input_t setpoint_index) 
-{
-  //check if index is within bounds
-  if (setpoint_index > INPUT_T_MAX) 
-  {
-    return STATUS_ERR_ARG_OUT_OF_RANGE;
+status_code_t clear_setpoint(input_t setpoint_index){
+
+  setpoint_t* setpoint = (void*)(FLASH_USER_START_ADDR + (sizeof(setpoint_t) * setpoint_index));
+
+  // Check if requested setpoint contains data
+  if (setpoint->x == FLASH_EMPTY && setpoint->x == FLASH_EMPTY && setpoint->x == FLASH_EMPTY){
+    return STATUS_ERR_INVALID_SETPOINT;
   }
 
   //store all setpoints in temp
@@ -475,11 +476,9 @@ status_code_t clear_setpoint(input_t setpoint_index)
   setpoint_t* flash_setpoints = (setpoint_t*)(FLASH_USER_START_ADDR);
 
   input_t temp_count = 0;
-  for (input_t i = 0; i <= INPUT_T_MAX; i++) 
-  {
+  for (input_t i = 0; i <= INPUT_T_MAX; i++) {
     //copy all setpoints excluding the specified index
-    if (i != setpoint_index) 
-    {
+    if (i != setpoint_index) {
       temp_setpoints[temp_count++] = flash_setpoints[i];
     }
   }
@@ -487,20 +486,16 @@ status_code_t clear_setpoint(input_t setpoint_index)
   //erase the setpoints since as the setpoints are stored in temp
   clear_all_setpoints();
 
-
   //unlock flash to begin writing
   HAL_FLASH_Unlock();
 
   //write back all setpoints into flash except for the specified index
-  for (input_t i = 0; i < temp_count; i++) 
-  {
+  for (input_t i = 0; i < temp_count; i++) {
     if(HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(flash_setpoints[i].x)), temp_setpoints[i].x) != HAL_OK ||
       HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(flash_setpoints[i].y)), temp_setpoints[i].y) != HAL_OK ||
-      HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(flash_setpoints[i].speed)), temp_setpoints[i].speed) != HAL_OK) 
-      {
+      HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(flash_setpoints[i].speed)), temp_setpoints[i].speed) != HAL_OK) {
         HAL_FLASH_Lock();
-        return STATUS_ERR_FLASH_WRITE_FAILED;
-      }
+        return STATUS_ERR_FLASH_WRITE_FAILED;}
   }
   HAL_FLASH_Lock();
   return STATUS_OK;
