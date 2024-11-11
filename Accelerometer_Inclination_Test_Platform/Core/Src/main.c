@@ -462,6 +462,52 @@ status_code_t run_setpoint(input_t index) {
   return STATUS_OK;
 }
 
+status_code_t clear_setpoint(input_t setpoint_index) 
+{
+  //check if index is within bounds
+  if (setpoint_index > INPUT_T_MAX) 
+  {
+    return STATUS_ERR_ARG_OUT_OF_RANGE;
+  }
+
+  //store all setpoints in temp
+  setpoint_t temp_setpoints[INPUT_T_MAX];
+  setpoint_t* flash_setpoints = (setpoint_t*)(FLASH_USER_START_ADDR);
+
+  input_t temp_count = 0;
+  for (input_t i = 0; i <= INPUT_T_MAX; i++) 
+  {
+    //copy all setpoints excluding the specified index
+    if (i != setpoint_index) 
+    {
+      temp_setpoints[temp_count++] = flash_setpoints[i];
+    }
+  }
+
+  //erase the setpoints since as the setpoints are stored in temp
+  clear_all_setpoints();
+
+
+  //unlock flash to begin writing
+  HAL_FLASH_Unlock();
+
+  //write back all setpoints into flash except for the specified index
+  for (input_t i = 0; i < temp_count; i++) 
+  {
+    if(HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(flash_setpoints[i].x)), temp_setpoints[i].x) != HAL_OK ||
+      HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(flash_setpoints[i].y)), temp_setpoints[i].y) != HAL_OK ||
+      HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(flash_setpoints[i].speed)), temp_setpoints[i].speed) != HAL_OK) 
+      {
+        HAL_FLASH_Lock();
+        return STATUS_ERR_FLASH_WRITE_FAILED;
+      }
+  }
+  HAL_FLASH_Lock();
+  return STATUS_OK;
+}
+
+
+
 status_code_t test_servos(void) {
   // TODO: Change test printout to {X Y} format
   char test_buf[UART_TX_BUF_LEN];
@@ -688,6 +734,10 @@ system_state_t instruction_wait_state_handler(void) {
           break;
         case CLEAR_ALL_SETPOINTS_INSTRUCTION:
           instruction.status = clear_all_setpoints();
+          uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
+          break;
+        case CLEAR_SETPOINT_INSTRUCTION:
+          instruction.status = clear_setpoint(instruction.args[0]);
           uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
           break;
         case TEST_FLASH_INSTRUCTION:
