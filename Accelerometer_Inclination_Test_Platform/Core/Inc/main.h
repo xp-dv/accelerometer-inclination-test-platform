@@ -95,23 +95,19 @@ void Error_Handler(void);
 #define BIT_5_MASK 0x20U
 #define BIT_6_MASK 0x40U
 #define BIT_7_MASK 0x80U
-
 #define FLASH_EMPTY 0xFFFF
-#define FLASH_SHIFT_X_ANG 0
-#define FLASH_SHIFT_Y_ANG (sizeof(input_t))
-#define FLASH_SHIFT_SPEED (sizeof(input_t) * 2U)
 
 #define CCR_X htim2.Instance->CCR1
 #define CCR_Y htim2.Instance->CCR2
 
 #define STARTUP_DELAY 2000
 
-// BEGIN ADXL Register Map
+// ADXL Register Map
 #define ADXL_DEVID 0x00U // Device ID
 #define ADXL_POWER_CTL 0x2DU // Power Mode Control
 #define ADXL_DATA_FORMAT 0x31U // Data Format
 #define ADXL_DATAX0 0x32U // Data Format
-// END ADXL Register Map
+// ADXL Macros
 #define ADXL_ADDRESS_SIZE 1 // Size of the ADXL address in bytes
 #define ADXL_DATA_SIZE 6 // Size of the ADXL data register in bytes
 #define ADXL_TIMEOUT 100 // SPI Timeout in ms

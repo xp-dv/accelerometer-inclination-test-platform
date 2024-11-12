@@ -21,24 +21,29 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+
+//* Private Includes
+#include "main.h"
+
+//* Standard Includes
+#include "stm32f4xx_hal.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <ctype.h>
 #include <string.h>
 #include <math.h>
-#include "stm32f4xx_hal.h"
-#include "main.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+
 typedef uint16_t input_t; // Typedef set to fit numbers of size INPUT_T_MAX
 
 typedef enum {
   STARTUP_STATE,
   INSTRUCTION_WAIT_STATE,
-  EDIT_SEQUENCE_STATE,
   RUN_STATE,
 } system_state_t;
 
@@ -162,6 +167,25 @@ static void MX_USART1_UART_Init(void);
 static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
 
+//* Internal Function Prototypes
+void uart_echo(char* tx_buf, const char* rx_buf, const int status);
+instruction_t parse_instruction(char* parse_buf);
+void adxl_tx(uint8_t address, uint8_t value);
+void adxl_rx(uint8_t address);
+void adxl_init(void);
+void adxl_read(void);
+
+//* Instruction Function Prototypes
+int move(float x_ang, float y_ang, int speed);
+status_code_t get_setpoint(input_t index);
+status_code_t add_setpoint(input_t x_ang, input_t y_ang, input_t speed);
+status_code_t clear_setpoint(input_t setpoint_index);
+status_code_t get_all_setpoints(void);
+status_code_t clear_all_setpoints(void);
+status_code_t run_setpoint(input_t index);
+status_code_t test_servos(void);
+status_code_t test_flash(void);
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -190,7 +214,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
   HAL_UART_Receive_IT(&huart2, (uint8_t *)uart_rx_char, 1U); // Receive single char
 }
 
-//* Private Functions
+//* Internal Functions
 void uart_echo(char* tx_buf, const char* rx_buf, const int status) {
   sprintf(tx_buf, "[%02u]%s\r\n", (status % 100), rx_buf); // Modulo truncates to 2 digits
   HAL_UART_Transmit(&huart2, (uint8_t*)tx_buf, strlen(tx_buf), UART_TX_TIMEOUT);
@@ -344,10 +368,10 @@ int move(float x_ang, float y_ang, int speed) {
 
 status_code_t get_setpoint(input_t index) {
   // Get setpoint data
-  setpoint_t* setpoint = (void*)(FLASH_USER_START_ADDR + (sizeof(setpoint_t) * index));
+  setpoint_t* setpoint = (setpoint_t*)(FLASH_USER_START_ADDR + (sizeof(setpoint_t) * index));
 
   // Check if requested setpoint contains data
-  if (setpoint->x == FLASH_EMPTY && setpoint->x == FLASH_EMPTY && setpoint->x == FLASH_EMPTY) {
+  if (setpoint->x == FLASH_EMPTY && setpoint->y == FLASH_EMPTY && setpoint->speed == FLASH_EMPTY) {
     return STATUS_ERR_INVALID_SETPOINT;
   }
 
@@ -361,7 +385,7 @@ status_code_t get_setpoint(input_t index) {
 
 status_code_t add_setpoint(input_t x_ang, input_t y_ang, input_t speed) {
   // Get address and index of last setpoint
-  setpoint_t* setpoint = (void*)(FLASH_USER_START_ADDR);
+  setpoint_t* setpoint = (setpoint_t*)(FLASH_USER_START_ADDR);
   input_t index = 0;
   while(index <= INPUT_T_MAX) {
     if (setpoint->x == FLASH_EMPTY && setpoint->y == FLASH_EMPTY && setpoint->speed == FLASH_EMPTY) {
@@ -378,15 +402,9 @@ status_code_t add_setpoint(input_t x_ang, input_t y_ang, input_t speed) {
   HAL_FLASH_Unlock();
 
   // Write the array to flash memory
-  if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(setpoint->x)), x_ang) != HAL_OK) {
-    HAL_FLASH_Lock();
-    return STATUS_ERR_FLASH_WRITE_FAILED;
-  }
-  if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(setpoint->y)), y_ang) != HAL_OK) {
-    HAL_FLASH_Lock();
-    return STATUS_ERR_FLASH_WRITE_FAILED;
-  }
-  if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(setpoint->speed)), speed) != HAL_OK) {
+  if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(setpoint->x)), x_ang) != HAL_OK ||
+      HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(setpoint->y)), y_ang) != HAL_OK ||
+      HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(setpoint->speed)), speed) != HAL_OK) {
     HAL_FLASH_Lock();
     return STATUS_ERR_FLASH_WRITE_FAILED;
   }
@@ -397,8 +415,49 @@ status_code_t add_setpoint(input_t x_ang, input_t y_ang, input_t speed) {
   return STATUS_OK;
 }
 
+status_code_t clear_setpoint(input_t setpoint_index) {
+  // Check if requested setpoint contains data
+  setpoint_t* setpoint = (setpoint_t*)(FLASH_USER_START_ADDR + (sizeof(setpoint_t) * setpoint_index));
+  if (setpoint->x == FLASH_EMPTY && setpoint->y == FLASH_EMPTY && setpoint->speed == FLASH_EMPTY){
+    return STATUS_ERR_INVALID_SETPOINT;
+  }
+
+  // Store all setpoints in temp
+  setpoint_t temp_setpoints[INPUT_T_MAX];
+  setpoint_t* flash_setpoints = (setpoint_t*)(FLASH_USER_START_ADDR);
+
+  input_t temp_count = 0;
+  for (input_t i = 0; i <= INPUT_T_MAX; i++) {
+    // Copy all setpoints excluding the specified index
+    if (i != setpoint_index) {
+      temp_setpoints[temp_count++] = flash_setpoints[i];
+    }
+  }
+
+  // Clear old setpoints from flash
+  clear_all_setpoints();
+
+  // Unlock flash to begin writing
+  HAL_FLASH_Unlock();
+
+  // Write back all setpoints into flash except for the specified index
+  for (input_t i = 0; i < temp_count; i++) {
+    if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(flash_setpoints[i].x)), temp_setpoints[i].x) != HAL_OK ||
+        HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(flash_setpoints[i].y)), temp_setpoints[i].y) != HAL_OK ||
+        HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(flash_setpoints[i].speed)), temp_setpoints[i].speed) != HAL_OK) {
+      HAL_FLASH_Lock();
+      return STATUS_ERR_FLASH_WRITE_FAILED;
+    }
+  }
+
+  // Lock flash memory after writing
+  HAL_FLASH_Lock();
+
+  return STATUS_OK;
+}
+
 status_code_t get_all_setpoints(void) {
-  setpoint_t* setpoint = (void*)(FLASH_USER_START_ADDR);
+  setpoint_t* setpoint = (setpoint_t*)(FLASH_USER_START_ADDR);
   input_t index = 0;
   char uart_tx_buf[UART_TX_BUF_LEN];
 
@@ -461,47 +520,6 @@ status_code_t run_setpoint(input_t index) {
   // TODO: Same as move, but the setpoint information must be parsed from setpoints[]
   return STATUS_OK;
 }
-
-status_code_t clear_setpoint(input_t setpoint_index){
-
-  setpoint_t* setpoint = (void*)(FLASH_USER_START_ADDR + (sizeof(setpoint_t) * setpoint_index));
-
-  // Check if requested setpoint contains data
-  if (setpoint->x == FLASH_EMPTY && setpoint->x == FLASH_EMPTY && setpoint->x == FLASH_EMPTY){
-    return STATUS_ERR_INVALID_SETPOINT;
-  }
-
-  //store all setpoints in temp
-  setpoint_t temp_setpoints[INPUT_T_MAX];
-  setpoint_t* flash_setpoints = (setpoint_t*)(FLASH_USER_START_ADDR);
-
-  input_t temp_count = 0;
-  for (input_t i = 0; i <= INPUT_T_MAX; i++) {
-    //copy all setpoints excluding the specified index
-    if (i != setpoint_index) {
-      temp_setpoints[temp_count++] = flash_setpoints[i];
-    }
-  }
-
-  //erase the setpoints since as the setpoints are stored in temp
-  clear_all_setpoints();
-
-  //unlock flash to begin writing
-  HAL_FLASH_Unlock();
-
-  //write back all setpoints into flash except for the specified index
-  for (input_t i = 0; i < temp_count; i++) {
-    if(HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(flash_setpoints[i].x)), temp_setpoints[i].x) != HAL_OK ||
-      HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(flash_setpoints[i].y)), temp_setpoints[i].y) != HAL_OK ||
-      HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(flash_setpoints[i].speed)), temp_setpoints[i].speed) != HAL_OK) {
-        HAL_FLASH_Lock();
-        return STATUS_ERR_FLASH_WRITE_FAILED;}
-  }
-  HAL_FLASH_Lock();
-  return STATUS_OK;
-}
-
-
 
 status_code_t test_servos(void) {
   // TODO: Change test printout to {X Y} format
@@ -763,11 +781,6 @@ system_state_t instruction_wait_state_handler(void) {
   return INSTRUCTION_WAIT_STATE;
 }
 
-system_state_t edit_sequence_state_handler(void) {
-  // Allow user to define and store a sequence
-  return INSTRUCTION_WAIT_STATE;
-}
-
 system_state_t run_state_handler(void) {
   // Listen for stop commands
   // Run test setpoint
@@ -832,9 +845,6 @@ int main(void)
         break;
       case INSTRUCTION_WAIT_STATE:
         next_state_e = instruction_wait_state_handler();
-        break;
-      case EDIT_SEQUENCE_STATE:
-        next_state_e = edit_sequence_state_handler();
         break;
       case RUN_STATE:
         next_state_e = run_state_handler();
