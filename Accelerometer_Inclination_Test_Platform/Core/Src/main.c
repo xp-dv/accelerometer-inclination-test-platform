@@ -55,14 +55,12 @@ typedef enum {
   // Setpoint Commands
   GET_SETPOINT_INSTRUCTION,
   ADD_SETPOINT_INSTRUCTION,
-  CLEAR_SETPOINT_INSTRUCTION,
-  GET_ALL_SETPOINTS_INSTRUCTION,
-  CLEAR_ALL_SETPOINTS_INSTRUCTION,
-  // Sequence Commands
-  GET_SEQUENCE_INSTRUCTION,
-  RUN_SEQUENCE_INSTRUCTION,
-  ADD_TO_SEQUENCE_INSTRUCTION,
-  CLEAR_SEQUENCE_INSTRUCTION,
+  REMOVE_SETPOINT_INSTRUCTION,
+  // Profile Commands
+  GET_PROFILE_INSTRUCTION,
+  CLEAR_PROFILE_INSTRUCTION,
+  RUN_PROFILE_INSTRUCTION,
+  RUN_SETPOINT_INSTRUCTION,
   // Test Commands
   TEST_SERVOS_INSTRUCTION = 996U,
   TEST_FLASH_INSTRUCTION,
@@ -133,7 +131,7 @@ setpoint_t setpoints[MAX_LEN] = {{
   .speed = 5,
 }};
 
-setpoint_t sequence[MAX_LEN] = {{
+setpoint_t profile[MAX_LEN] = {{
   .x = 0,
   .y = 0,
   .speed = 5,
@@ -177,12 +175,12 @@ void adxl_read(void);
 
 //* Instruction Function Prototypes
 int move(float x_ang, float y_ang, int speed);
-status_code_t get_setpoint(input_t index);
-status_code_t add_setpoint(input_t x_ang, input_t y_ang, input_t speed);
-status_code_t clear_setpoint(input_t setpoint_index);
-status_code_t get_all_setpoints(void);
-status_code_t clear_all_setpoints(void);
-status_code_t run_setpoint(input_t index);
+status_code_t get_setpoint(input_t index, input_t profile);
+status_code_t add_setpoint(input_t x_ang, input_t y_ang, input_t speed, input_t profile);
+status_code_t remove_setpoint(input_t setpoint_index, input_t profile);
+status_code_t get_profile(input_t profile);
+status_code_t clear_profile(input_t profile);
+status_code_t run_profile(input_t profile);
 status_code_t test_servos(void);
 status_code_t test_flash(void);
 
@@ -211,13 +209,13 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
     }
   }
   // UART Interrupt Rx Reactivate
-  HAL_UART_Receive_IT(&huart2, (uint8_t *)uart_rx_char, 1U); // Receive single char
+  HAL_UART_Receive_IT(HUART_PTR, (uint8_t *)uart_rx_char, 1U); // Receive single char
 }
 
 //* Internal Functions
 void uart_echo(char* tx_buf, const char* rx_buf, const int status) {
   sprintf(tx_buf, "[%02u]%s\r\n", (status % 100), rx_buf); // Modulo truncates to 2 digits
-  HAL_UART_Transmit(&huart2, (uint8_t*)tx_buf, strlen(tx_buf), UART_TX_TIMEOUT);
+  HAL_UART_Transmit(HUART_PTR, (uint8_t*)tx_buf, strlen(tx_buf), UART_TX_TIMEOUT);
 }
 
 int strtoint(char* str) {
@@ -366,9 +364,9 @@ int move(float x_ang, float y_ang, int speed) {
 // ! Do not create stop() function here. Trigger an interrupt from the instruction_handler() for the stop instruction, instead.
 // Attempts to stop platform. If platform does not stop, reset stm board.
 
-status_code_t get_setpoint(input_t index) {
+status_code_t get_setpoint(input_t index, input_t profile) {
   // Get setpoint data
-  setpoint_t* setpoint = (setpoint_t*)(FLASH_USER_START_ADDR + (sizeof(setpoint_t) * index));
+  setpoint_t* setpoint = (setpoint_t*)(FLASH_USER_START_ADDR + (MAX_LEN * profile) + (sizeof(setpoint_t) * index));
 
   // Check if requested setpoint contains data
   if (setpoint->x == FLASH_EMPTY && setpoint->y == FLASH_EMPTY && setpoint->speed == FLASH_EMPTY) {
@@ -378,14 +376,14 @@ status_code_t get_setpoint(input_t index) {
   // Transmit setpoint data
   char uart_tx_buf[UART_TX_BUF_LEN];
   sprintf(uart_tx_buf, "{%03u %03u %03u}\r\n", (setpoint->x % 1000), (setpoint->y % 1000), (setpoint->speed % 1000));
-  HAL_UART_Transmit(&huart2, (uint8_t*)uart_tx_buf, strlen(uart_tx_buf), UART_TX_TIMEOUT);
+  HAL_UART_Transmit(HUART_PTR, (uint8_t*)uart_tx_buf, strlen(uart_tx_buf), UART_TX_TIMEOUT);
 
   return STATUS_OK;
 }
 
-status_code_t add_setpoint(input_t x_ang, input_t y_ang, input_t speed) {
+status_code_t add_setpoint(input_t x_ang, input_t y_ang, input_t speed, input_t profile) {
   // Get address and index of last setpoint
-  setpoint_t* setpoint = (setpoint_t*)(FLASH_USER_START_ADDR);
+  setpoint_t* setpoint = (setpoint_t*)(FLASH_USER_START_ADDR + (MAX_LEN * profile));
   input_t index = 0;
   while(index <= INPUT_T_MAX) {
     if (setpoint->x == FLASH_EMPTY && setpoint->y == FLASH_EMPTY && setpoint->speed == FLASH_EMPTY) {
@@ -415,7 +413,7 @@ status_code_t add_setpoint(input_t x_ang, input_t y_ang, input_t speed) {
   return STATUS_OK;
 }
 
-status_code_t clear_setpoint(input_t setpoint_index) {
+status_code_t remove_setpoint(input_t setpoint_index, input_t profile) {
   // Check if requested setpoint contains data
   setpoint_t* setpoint = (setpoint_t*)(FLASH_USER_START_ADDR + (sizeof(setpoint_t) * setpoint_index));
   if (setpoint->x == FLASH_EMPTY && setpoint->y == FLASH_EMPTY && setpoint->speed == FLASH_EMPTY){
@@ -423,28 +421,28 @@ status_code_t clear_setpoint(input_t setpoint_index) {
   }
 
   // Store all setpoints in temp
-  setpoint_t temp_setpoints[INPUT_T_MAX];
+  setpoint_t new_setpoints[INPUT_T_MAX];
   setpoint_t* flash_setpoints = (setpoint_t*)(FLASH_USER_START_ADDR);
 
-  input_t temp_count = 0;
+  input_t new_index = 0;
   for (input_t i = 0; i <= INPUT_T_MAX; i++) {
     // Copy all setpoints excluding the specified index
     if (i != setpoint_index) {
-      temp_setpoints[temp_count++] = flash_setpoints[i];
+      new_setpoints[new_index++] = flash_setpoints[i];
     }
   }
 
   // Clear old setpoints from flash
-  clear_all_setpoints();
+  clear_profile(profile);
 
   // Unlock flash to begin writing
   HAL_FLASH_Unlock();
 
   // Write back all setpoints into flash except for the specified index
-  for (input_t i = 0; i < temp_count; i++) {
-    if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(flash_setpoints[i].x)), temp_setpoints[i].x) != HAL_OK ||
-        HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(flash_setpoints[i].y)), temp_setpoints[i].y) != HAL_OK ||
-        HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(flash_setpoints[i].speed)), temp_setpoints[i].speed) != HAL_OK) {
+  for (input_t i = 0; i < new_index; i++) {
+    if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(flash_setpoints[i].x)), new_setpoints[i].x) != HAL_OK ||
+        HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(flash_setpoints[i].y)), new_setpoints[i].y) != HAL_OK ||
+        HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(flash_setpoints[i].speed)), new_setpoints[i].speed) != HAL_OK) {
       HAL_FLASH_Lock();
       return STATUS_ERR_FLASH_WRITE_FAILED;
     }
@@ -456,14 +454,14 @@ status_code_t clear_setpoint(input_t setpoint_index) {
   return STATUS_OK;
 }
 
-status_code_t get_all_setpoints(void) {
+status_code_t get_profile(input_t profile) {
   setpoint_t* setpoint = (setpoint_t*)(FLASH_USER_START_ADDR);
   input_t index = 0;
   char uart_tx_buf[UART_TX_BUF_LEN];
 
   // Transmit start indicator and first setpoint index
   sprintf(uart_tx_buf, "{000");
-  HAL_UART_Transmit(&huart2, (uint8_t*)uart_tx_buf, strlen(uart_tx_buf), UART_TX_TIMEOUT);
+  HAL_UART_Transmit(HUART_PTR, (uint8_t*)uart_tx_buf, strlen(uart_tx_buf), UART_TX_TIMEOUT);
   while(index <= INPUT_T_MAX) {
     // Stop when next setpoint is empty or when limit is reached
     if (setpoint->x == FLASH_EMPTY && setpoint->y == FLASH_EMPTY && setpoint->speed == FLASH_EMPTY) {
@@ -476,12 +474,12 @@ status_code_t get_all_setpoints(void) {
     // Create new packet every 10 setpoints
     if (index > 0 && (index % 10U) == 0) {
       sprintf(uart_tx_buf, "}\r\n{%03u", (index % 1000U));
-      HAL_UART_Transmit(&huart2, (uint8_t*)uart_tx_buf, strlen(uart_tx_buf), UART_TX_TIMEOUT);
+      HAL_UART_Transmit(HUART_PTR, (uint8_t*)uart_tx_buf, strlen(uart_tx_buf), UART_TX_TIMEOUT);
     }
 
     // Transmit setpoint data
     sprintf(uart_tx_buf, "|%03u %03u %03u", (setpoint->x % 1000U), (setpoint->y % 1000U), (setpoint->speed % 1000U));
-    HAL_UART_Transmit(&huart2, (uint8_t*)uart_tx_buf, strlen(uart_tx_buf), UART_TX_TIMEOUT);
+    HAL_UART_Transmit(HUART_PTR, (uint8_t*)uart_tx_buf, strlen(uart_tx_buf), UART_TX_TIMEOUT);
 
     // Increment setpoint and index
     ++setpoint;
@@ -489,12 +487,12 @@ status_code_t get_all_setpoints(void) {
   }
   // Transmit terminator
   sprintf(uart_tx_buf, "}\r\n");
-  HAL_UART_Transmit(&huart2, (uint8_t*)uart_tx_buf, strlen(uart_tx_buf), UART_TX_TIMEOUT);
+  HAL_UART_Transmit(HUART_PTR, (uint8_t*)uart_tx_buf, strlen(uart_tx_buf), UART_TX_TIMEOUT);
 
   return STATUS_OK;
 }
 
-status_code_t clear_all_setpoints(void) {
+status_code_t clear_profile(input_t profile) {
   // Unlock flash memory to enable writing
   HAL_FLASH_Unlock();
 
@@ -516,7 +514,7 @@ status_code_t clear_all_setpoints(void) {
   return STATUS_OK;
 }
 
-status_code_t run_setpoint(input_t index) {
+status_code_t run_profile(input_t profile) {
   // TODO: Same as move, but the setpoint information must be parsed from setpoints[]
   return STATUS_OK;
 }
@@ -527,7 +525,7 @@ status_code_t test_servos(void) {
 
   // Center Platform
   sprintf(test_buf, "Testing 0° for X and Y axes:\r\n");
-  HAL_UART_Transmit(&huart2, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+  HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
   adxl_read();
   CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0°
   CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0°
@@ -539,35 +537,35 @@ status_code_t test_servos(void) {
   HAL_Delay(SERVO_TEST_DELAY);
   
   sprintf(test_buf, "Testing -90° for X, 0° for Y axis:\r\n");
-  HAL_UART_Transmit(&huart2, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+  HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
   adxl_read();
   CCR_X = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_X; // -45° or 90° (From PULSE_WIDTH_MIN)
   CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
   HAL_Delay(SERVO_TEST_DELAY);
   
   sprintf(test_buf, "Testing -45° for X, 0° for Y axis:\r\n");
-  HAL_UART_Transmit(&huart2, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+  HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
   adxl_read();
   CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
   CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
   HAL_Delay(SERVO_TEST_DELAY);
   
   sprintf(test_buf, "Testing 0° for X and Y axes:\r\n");
-  HAL_UART_Transmit(&huart2, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+  HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
   adxl_read();
   CCR_X = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_X; // +45° or 180° (From PULSE_WIDTH_MIN)
   CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
   HAL_Delay(SERVO_TEST_DELAY);
   
   sprintf(test_buf, "Testing +45° for X, 0° for Y axis:\r\n");
-  HAL_UART_Transmit(&huart2, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+  HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
   adxl_read();
   CCR_X = PULSE_WIDTH_POS_90 + PULSE_WIDTH_OFFSET_X; // +90° or 225° (From PULSE_WIDTH_MIN)
   CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
   HAL_Delay(SERVO_TEST_DELAY);
   
   sprintf(test_buf, "Testing +90° for X, 0° for Y axis:\r\n");
-  HAL_UART_Transmit(&huart2, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+  HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
   adxl_read();
 
   // Move Y-Axis
@@ -576,35 +574,35 @@ status_code_t test_servos(void) {
   HAL_Delay(SERVO_TEST_DELAY);
   
   sprintf(test_buf, "Testing 0° for X, -90° for Y axis:\r\n");
-  HAL_UART_Transmit(&huart2, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+  HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
   adxl_read();
   CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
   CCR_Y = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_Y; // -45° or 90° (From PULSE_WIDTH_MIN)
   HAL_Delay(SERVO_TEST_DELAY);
   
   sprintf(test_buf, "Testing 0° for X, -45° for Y axis:\r\n");
-  HAL_UART_Transmit(&huart2, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+  HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
   adxl_read();
   CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
   CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
   HAL_Delay(SERVO_TEST_DELAY);
   
   sprintf(test_buf, "Testing 0° for X and Y axes:\r\n");
-  HAL_UART_Transmit(&huart2, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+  HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
   adxl_read();
   CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
   CCR_Y = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_Y; // +45° or 180° (From PULSE_WIDTH_MIN)
   HAL_Delay(SERVO_TEST_DELAY);
   
   sprintf(test_buf, "Testing 0° for X, +45° for Y axis:\r\n");
-  HAL_UART_Transmit(&huart2, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+  HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
   adxl_read();
   CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
   CCR_Y = PULSE_WIDTH_POS_90 + PULSE_WIDTH_OFFSET_Y; // +90° or 225° (From PULSE_WIDTH_MIN)
   HAL_Delay(SERVO_TEST_DELAY);
   
   sprintf(test_buf, "Testing 0° for X, +90° for Y axis:\r\n");
-  HAL_UART_Transmit(&huart2, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+  HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
   adxl_read();
 
   // Move Both Axes
@@ -613,35 +611,35 @@ status_code_t test_servos(void) {
   HAL_Delay(SERVO_TEST_DELAY);
   
   sprintf(test_buf, "Testing -45° for X and Y axes:\r\n");
-  HAL_UART_Transmit(&huart2, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+  HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
   adxl_read();
   CCR_X = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_X; // +45°
   CCR_Y = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_Y; // +45°
   HAL_Delay(SERVO_TEST_DELAY);
   
   sprintf(test_buf, "Testing +45° for X and Y axes:\r\n");
-  HAL_UART_Transmit(&huart2, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+  HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
   adxl_read();
   CCR_X = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_X; // +45°
   CCR_Y = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_Y; // -45°
   HAL_Delay(SERVO_TEST_DELAY);
   
   sprintf(test_buf, "Testing +45° for X, -45° for Y axis:\r\n");
-  HAL_UART_Transmit(&huart2, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+  HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
   adxl_read();
   CCR_X = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_X; // -45°
   CCR_Y = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_Y; // +45°
   HAL_Delay(SERVO_TEST_DELAY);
   
   sprintf(test_buf, "Testing -45° for X, +45° for Y axis:\r\n");
-  HAL_UART_Transmit(&huart2, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+  HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
   adxl_read();
   CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0°
   CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0°
   HAL_Delay(SERVO_TEST_DELAY);
   
   sprintf(test_buf, "Testing 0° for X and Y axes:\r\n");
-  HAL_UART_Transmit(&huart2, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+  HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
   adxl_read();
 
   return STATUS_OK;
@@ -649,22 +647,23 @@ status_code_t test_servos(void) {
 
 status_code_t test_flash(void) {
   status_code_t status;
-
-  status = clear_all_setpoints();
-  if (status != STATUS_OK) {
-    return status;
-  }
-
-  for (int i = 0; i < 300; i += 3) {
-    status = add_setpoint(i, (i + 1), (i + 2));
+  for (input_t profile = 0; profile < TOTAL_PROFILES; profile++) {
+    status = clear_profile(profile);
     if (status != STATUS_OK) {
       return status;
     }
-  }
 
-  status = get_all_setpoints();
-  if (status != STATUS_OK) {
-    return status;
+    for (uint16_t data = 0; data < 300U; data += 3U) {
+      status = add_setpoint(data, (data + 1U), (data + 2U), profile);
+      if (status != STATUS_OK) {
+        return status;
+      }
+    }
+
+    status = get_profile(profile);
+    if (status != STATUS_OK) {
+      return status;
+    }
   }
 
   return STATUS_OK;
@@ -683,7 +682,7 @@ system_state_t startup_state_handler(void) {
 
   //* UART
   // Rx Interrupt Setup
-  HAL_UART_Receive_IT(&huart2, (uint8_t *)uart_rx_char, 1U); // Receive single char
+  HAL_UART_Receive_IT(HUART_PTR, (uint8_t *)uart_rx_char, 1U); // Receive single char
 
   return INSTRUCTION_WAIT_STATE;
 }
@@ -726,7 +725,7 @@ system_state_t instruction_wait_state_handler(void) {
           } else if (instruction.arg_count > 1U) {
             instruction.status = STATUS_ERR_TOO_MANY_ARGS;
           } else {
-            instruction.status = get_setpoint(instruction.args[0]);
+            instruction.status = get_setpoint(instruction.args[0], instruction.args[1]);
           }
           uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
           break;
@@ -736,21 +735,21 @@ system_state_t instruction_wait_state_handler(void) {
           } else if (instruction.arg_count > 3U) {
             instruction.status = STATUS_ERR_TOO_MANY_ARGS;
           } else {
-            instruction.status = add_setpoint(instruction.args[0], instruction.args[1], instruction.args[2]);
+            instruction.status = add_setpoint(instruction.args[0], instruction.args[1], instruction.args[2], instruction.args[3]);
           }
-          // TODO: Consider echoing index after adding. Otherwise, user can use get_all_setpoints().
+          // TODO: Consider echoing index after adding. Otherwise, user can use get_profile().
           uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
           break;
-        case GET_ALL_SETPOINTS_INSTRUCTION:
-          instruction.status = get_all_setpoints();
+        case GET_PROFILE_INSTRUCTION:
+          instruction.status = get_profile(instruction.args[0]);
           uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
           break;
-        case CLEAR_ALL_SETPOINTS_INSTRUCTION:
-          instruction.status = clear_all_setpoints();
+        case CLEAR_PROFILE_INSTRUCTION:
+          instruction.status = clear_profile(instruction.args[0]);
           uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
           break;
-        case CLEAR_SETPOINT_INSTRUCTION:
-          instruction.status = clear_setpoint(instruction.args[0]);
+        case REMOVE_SETPOINT_INSTRUCTION:
+          instruction.status = remove_setpoint(instruction.args[0], instruction.args[1]);
           uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
           break;
         case TEST_FLASH_INSTRUCTION:

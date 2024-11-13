@@ -85,6 +85,7 @@ void Error_Handler(void);
 #define SECTOR_NUMBER FLASH_SECTOR_6
 /* USER CODE BEGIN Private defines */
 
+// Binary Manipulation
 #define RESERVED 0U
 #define BIT_RESET_MASK 0x00U
 #define BIT_0_MASK 0x01U
@@ -97,29 +98,34 @@ void Error_Handler(void);
 #define BIT_7_MASK 0x80U
 #define FLASH_EMPTY 0xFFFF
 
-#define CCR_X htim2.Instance->CCR1
-#define CCR_Y htim2.Instance->CCR2
-
-#define STARTUP_DELAY 2000
+// User Input
+#define INPUT_T_MAX 999U // Max possible instruction code value
+#define MAX_LEN (INPUT_T_MAX + 1U) // Max possible instruction code value
+#define INSTRUCTION_MAX_ARGS 4U // Maximum user-enterable parameters per instruction
+#define TOTAL_PROFILES 10
 
 // ADXL Register Map
 #define ADXL_DEVID 0x00U // Device ID
 #define ADXL_POWER_CTL 0x2DU // Power Mode Control
 #define ADXL_DATA_FORMAT 0x31U // Data Format
 #define ADXL_DATAX0 0x32U // Data Format
-// ADXL Macros
+
+// ADXL
 #define ADXL_ADDRESS_SIZE 1 // Size of the ADXL address in bytes
 #define ADXL_DATA_SIZE 6 // Size of the ADXL data register in bytes
 #define ADXL_TIMEOUT 100 // SPI Timeout in ms
 #define ADXL_SCALE_FACTOR 0.00414
 
+// UART
 #define BAUD_RATE 115200
+#define HUART_PTR &huart2
 #define UART_TX_TIMEOUT 50 // in ms
 #define UART_TX_BUF_LEN 128U
 #define UART_RX_BUF_LEN (UART_TX_BUF_LEN - 6U) // 6 bytes is size of status code extension
-#define INPUT_T_MAX 999U // Max possible instruction code value
-#define MAX_LEN (INPUT_T_MAX + 1U) // Max possible instruction code value
-#define INSTRUCTION_MAX_ARGS 4U // Maximum user-enterable parameters per instruction
+
+// Servos
+#define CCR_X htim2.Instance->CCR1
+#define CCR_Y htim2.Instance->CCR2
 
 #define PULSE_WIDTH_RANGE (PULSE_WIDTH_MAX - PULSE_WIDTH_MIN)
 #define PULSE_WIDTH_MIN 500 // us
@@ -133,7 +139,10 @@ void Error_Handler(void);
 #define PULSE_WIDTH_OFFSET_Y -25 // us
 #define SERVO_TEST_DELAY 3000 // ms
 
-// #define TEST // Code in #ifdef TEST will only compile if TEST is defined
+// Misc
+#define STARTUP_DELAY 2000
+
+// #define TEST // Code within #ifdef TEST will only compile if TEST is defined
 
 /* USER CODE END Private defines */
 
