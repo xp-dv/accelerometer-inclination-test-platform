@@ -100,7 +100,7 @@ void Error_Handler(void);
 
 // User Input
 #define INPUT_T_MAX 999U // Max possible instruction code value
-#define MAX_LEN (INPUT_T_MAX + 1U) // Max possible instruction code value
+#define PROFILE_LEN (INPUT_T_MAX + 1U) // 1000 setpoints per profile
 #define INSTRUCTION_MAX_ARGS 4U // Maximum user-enterable parameters per instruction
 #define TOTAL_PROFILES 10
 

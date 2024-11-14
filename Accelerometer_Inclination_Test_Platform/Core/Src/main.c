@@ -85,8 +85,9 @@ typedef enum {
   STATUS_ERR_ARG_OUT_OF_RANGE,
   //* Thrown by user data functions
   STATUS_ERR_INVALID_SETPOINT,
-  STATUS_ERR_FLASH_WRITE_FAILED,
   STATUS_ERR_SETPOINTS_FULL,
+  STATUS_ERR_EMPTY_PROFILE,
+  STATUS_ERR_FLASH_WRITE_FAILED,
 } status_code_t;
 
 typedef struct {
@@ -124,19 +125,6 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 
-//* User Data Variables (Saved in Flash Memory)
-setpoint_t setpoints[MAX_LEN] = {{
-  .x = 0,
-  .y = 0,
-  .speed = 5,
-}};
-
-setpoint_t profile[MAX_LEN] = {{
-  .x = 0,
-  .y = 0,
-  .speed = 5,
-}};
-
 //* Accelerometer Read
 uint8_t adxl_rx_buf[ADXL_DATA_SIZE]; // The 6 bytes of ADXL data are stored here
 float x_g, y_g, z_g;
@@ -166,21 +154,24 @@ static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
 
 //* Internal Function Prototypes
-void uart_echo(char* tx_buf, const char* rx_buf, const int status);
+int strtoint(char* str);
 instruction_t parse_instruction(char* parse_buf);
+void uart_echo(char* tx_buf, const char* rx_buf, const int status);
+status_code_t clear_flash(void);
 void adxl_tx(uint8_t address, uint8_t value);
 void adxl_rx(uint8_t address);
 void adxl_init(void);
 void adxl_read(void);
 
 //* Instruction Function Prototypes
-int move(float x_ang, float y_ang, int speed);
+status_code_t move(float x_ang, float y_ang, int speed);
 status_code_t get_setpoint(input_t index, input_t profile);
 status_code_t add_setpoint(input_t x_ang, input_t y_ang, input_t speed, input_t profile);
-status_code_t remove_setpoint(input_t setpoint_index, input_t profile);
+status_code_t remove_setpoint(input_t index, input_t profile);
 status_code_t get_profile(input_t profile);
 status_code_t clear_profile(input_t profile);
 status_code_t run_profile(input_t profile);
+status_code_t run_setpoint(input_t index, input_t profile);
 status_code_t test_servos(void);
 status_code_t test_flash(void);
 
@@ -213,11 +204,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 }
 
 //* Internal Functions
-void uart_echo(char* tx_buf, const char* rx_buf, const int status) {
-  sprintf(tx_buf, "[%02u]%s\r\n", (status % 100), rx_buf); // Modulo truncates to 2 digits
-  HAL_UART_Transmit(HUART_PTR, (uint8_t*)tx_buf, strlen(tx_buf), UART_TX_TIMEOUT);
-}
-
 int strtoint(char* str) {
   int num = 0;
   if (str != NULL) {
@@ -297,6 +283,33 @@ instruction_t parse_instruction(char* parse_buf) {
   return instruction;
 }
 
+void uart_echo(char* tx_buf, const char* rx_buf, const int status) {
+  sprintf(tx_buf, "[%02u]%s\r\n", (status % 100), rx_buf); // Modulo truncates to 2 digits
+  HAL_UART_Transmit(HUART_PTR, (uint8_t*)tx_buf, strlen(tx_buf), UART_TX_TIMEOUT);
+}
+
+status_code_t clear_flash(void) {
+  // Unlock flash memory to enable writing
+  HAL_FLASH_Unlock();
+
+  // Erase flash memory by sector
+  FLASH_EraseInitTypeDef flash_erase_setup = {
+    .TypeErase = FLASH_TYPEERASE_SECTORS,
+    .Sector = SECTOR_NUMBER,
+    .NbSectors = 1,
+    .VoltageRange = FLASH_VOLTAGE_RANGE_3,
+  };
+  uint32_t sector_error = 0;
+  if (HAL_FLASHEx_Erase(&flash_erase_setup, &sector_error) != HAL_OK) {
+    return STATUS_ERR_FLASH_WRITE_FAILED;
+  }
+
+  // Lock flash memory after writing
+  HAL_FLASH_Lock();
+
+  return STATUS_OK;
+}
+
 void adxl_tx(uint8_t address, uint8_t value) {
   uint8_t data[2];
   data[0] = address | BIT_6_MASK;  // Multibyte write enabled
@@ -345,7 +358,7 @@ void adxl_read(void) {
 }
 
 //* Instruction Functions
-int move(float x_ang, float y_ang, int speed) {
+status_code_t move(float x_ang, float y_ang, int speed) {
   /**
    * TASK:
    * ! current_position = adxl_read();
@@ -365,8 +378,8 @@ int move(float x_ang, float y_ang, int speed) {
 // Attempts to stop platform. If platform does not stop, reset stm board.
 
 status_code_t get_setpoint(input_t index, input_t profile) {
-  // Get setpoint data
-  setpoint_t* setpoint = (setpoint_t*)(FLASH_USER_START_ADDR + (MAX_LEN * profile) + (sizeof(setpoint_t) * index));
+  // Get setpoint pointer from index and profile arguments
+  setpoint_t* setpoint = (setpoint_t*)(FLASH_USER_START_ADDR + (sizeof(setpoint_t) * index) + (PROFILE_LEN * profile));
 
   // Check if requested setpoint contains data
   if (setpoint->x == FLASH_EMPTY && setpoint->y == FLASH_EMPTY && setpoint->speed == FLASH_EMPTY) {
@@ -383,7 +396,7 @@ status_code_t get_setpoint(input_t index, input_t profile) {
 
 status_code_t add_setpoint(input_t x_ang, input_t y_ang, input_t speed, input_t profile) {
   // Get address and index of last setpoint
-  setpoint_t* setpoint = (setpoint_t*)(FLASH_USER_START_ADDR + (MAX_LEN * profile));
+  setpoint_t* setpoint = (setpoint_t*)(FLASH_USER_START_ADDR + (PROFILE_LEN * profile));
   input_t index = 0;
   while(index <= INPUT_T_MAX) {
     if (setpoint->x == FLASH_EMPTY && setpoint->y == FLASH_EMPTY && setpoint->speed == FLASH_EMPTY) {
@@ -413,22 +426,23 @@ status_code_t add_setpoint(input_t x_ang, input_t y_ang, input_t speed, input_t 
   return STATUS_OK;
 }
 
-status_code_t remove_setpoint(input_t setpoint_index, input_t profile) {
+status_code_t remove_setpoint(input_t index, input_t profile) {
+  // Get setpoint pointer from index and profile arguments
+  setpoint_t* flash_setpoints = (setpoint_t*)(FLASH_USER_START_ADDR + (sizeof(setpoint_t) * index) + (PROFILE_LEN * profile));
+
   // Check if requested setpoint contains data
-  setpoint_t* setpoint = (setpoint_t*)(FLASH_USER_START_ADDR + (sizeof(setpoint_t) * setpoint_index));
-  if (setpoint->x == FLASH_EMPTY && setpoint->y == FLASH_EMPTY && setpoint->speed == FLASH_EMPTY){
+  if (flash_setpoints->x == FLASH_EMPTY && flash_setpoints->y == FLASH_EMPTY && flash_setpoints->speed == FLASH_EMPTY){
     return STATUS_ERR_INVALID_SETPOINT;
   }
 
-  // Store all setpoints in temp
-  setpoint_t new_setpoints[INPUT_T_MAX];
-  setpoint_t* flash_setpoints = (setpoint_t*)(FLASH_USER_START_ADDR);
-
+  // Copy the kept setpoints to RAM
+  setpoint_t kept_setpoints[INPUT_T_MAX];
   input_t new_index = 0;
+
   for (input_t i = 0; i <= INPUT_T_MAX; i++) {
     // Copy all setpoints excluding the specified index
-    if (i != setpoint_index) {
-      new_setpoints[new_index++] = flash_setpoints[i];
+    if (i != index) {
+      kept_setpoints[new_index++] = flash_setpoints[i];
     }
   }
 
@@ -440,9 +454,9 @@ status_code_t remove_setpoint(input_t setpoint_index, input_t profile) {
 
   // Write back all setpoints into flash except for the specified index
   for (input_t i = 0; i < new_index; i++) {
-    if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(flash_setpoints[i].x)), new_setpoints[i].x) != HAL_OK ||
-        HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(flash_setpoints[i].y)), new_setpoints[i].y) != HAL_OK ||
-        HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(flash_setpoints[i].speed)), new_setpoints[i].speed) != HAL_OK) {
+    if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(flash_setpoints[i].x)), kept_setpoints[i].x) != HAL_OK ||
+        HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(flash_setpoints[i].y)), kept_setpoints[i].y) != HAL_OK ||
+        HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(flash_setpoints[i].speed)), kept_setpoints[i].speed) != HAL_OK) {
       HAL_FLASH_Lock();
       return STATUS_ERR_FLASH_WRITE_FAILED;
     }
@@ -455,10 +469,11 @@ status_code_t remove_setpoint(input_t setpoint_index, input_t profile) {
 }
 
 status_code_t get_profile(input_t profile) {
-  setpoint_t* setpoint = (setpoint_t*)(FLASH_USER_START_ADDR);
+  // Get setpoint pointer from index and profile arguments
+  setpoint_t* setpoint = (setpoint_t*)(FLASH_USER_START_ADDR + (PROFILE_LEN * profile));
+
   input_t index = 0;
   char uart_tx_buf[UART_TX_BUF_LEN];
-
   // Transmit start indicator and first setpoint index
   sprintf(uart_tx_buf, "{000");
   HAL_UART_Transmit(HUART_PTR, (uint8_t*)uart_tx_buf, strlen(uart_tx_buf), UART_TX_TIMEOUT);
@@ -493,19 +508,42 @@ status_code_t get_profile(input_t profile) {
 }
 
 status_code_t clear_profile(input_t profile) {
-  // Unlock flash memory to enable writing
+  // Get setpoint pointer from profile argument
+  setpoint_t* flash_setpoints = (setpoint_t*)(FLASH_USER_START_ADDR + (PROFILE_LEN * profile));
+
+  // Check if requested profile contains data
+  if (flash_setpoints->x == FLASH_EMPTY && flash_setpoints->y == FLASH_EMPTY && flash_setpoints->speed == FLASH_EMPTY){
+    return STATUS_ERR_INVALID_SETPOINT;
+  }
+
+  // Copy the setpoints from all the kept profiles to RAM
+  setpoint_t kept_setpoints[TOTAL_PROFILES * PROFILE_LEN];
+  for (input_t i = 0; i <= TOTAL_PROFILES; i += PROFILE_LEN) {
+    // Copy all setpoints excluding the specified index
+    if (i != profile) {
+      memcpy(&kept_setpoints[i], &flash_setpoints[i], (PROFILE_LEN * sizeof(setpoint_t)));
+    }
+  }
+
+  // Clear all profiles from flash. Note:
+  // STM32 flash can only be erased sector-by-sector which is why the specified profile can't be individually cleared.
+  if (clear_flash() != STATUS_OK) {
+    return STATUS_ERR_FLASH_WRITE_FAILED;
+  }
+
+  // Unlock flash to begin writing
   HAL_FLASH_Unlock();
 
-  FLASH_EraseInitTypeDef flash_erase_setup = {
-    .TypeErase = FLASH_TYPEERASE_SECTORS,
-    .Sector = SECTOR_NUMBER,
-    .NbSectors = 1,
-    .VoltageRange = FLASH_VOLTAGE_RANGE_3,
-  };
-  uint32_t sector_error = 0;
-
-  if (HAL_FLASHEx_Erase(&flash_erase_setup, &sector_error) != HAL_OK) {
-    return STATUS_ERR_FLASH_WRITE_FAILED;
+  // Write back all profiles into flash except for the specified profile
+  for (input_t i = 0; i < TOTAL_PROFILES * PROFILE_LEN; i++) {
+    if (kept_setpoints[i].x != FLASH_EMPTY && kept_setpoints[i].y != FLASH_EMPTY && kept_setpoints[i].speed != FLASH_EMPTY) {
+      if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(flash_setpoints[i].x)), kept_setpoints[i].x) != HAL_OK ||
+          HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(flash_setpoints[i].y)), kept_setpoints[i].y) != HAL_OK ||
+          HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(flash_setpoints[i].speed)), kept_setpoints[i].speed) != HAL_OK) {
+        HAL_FLASH_Lock();
+        return STATUS_ERR_FLASH_WRITE_FAILED;
+      }
+    }
   }
 
   // Lock flash memory after writing
@@ -515,7 +553,13 @@ status_code_t clear_profile(input_t profile) {
 }
 
 status_code_t run_profile(input_t profile) {
-  // TODO: Same as move, but the setpoint information must be parsed from setpoints[]
+
+  return STATUS_OK;
+}
+
+status_code_t run_setpoint(input_t index, input_t profile) {
+  // TODO: Allows the user to recall a setpoint out of a specific profile instead of remembering/storing it for move().
+
   return STATUS_OK;
 }
 
@@ -715,29 +759,34 @@ system_state_t instruction_wait_state_handler(void) {
       if (instruction.status != STATUS_OK) {
         uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
       } else {
+        /**
+         * TODO:
+         * Finish all instruction cases in instruction_code_t.
+         * Error check instruction.args using a list of every instruction containing their arg counts,
+         * arg limits, and if they require a profile, the profile index limit.
+         */
         //* Instruction switch
-        // TODO: Finish all cases in instruction_code_t
-        // TODO: Find more elegant implementation of arg_count check
         switch (instruction.code) {
+        case MOVE_INSTRUCTION:
+          instruction.status = move(instruction.args[0], instruction.args[1], instruction.args[2]);
+          uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
+          break;
+        case STOP_INSTRUCTION:
+          // TODO: Implement stop interrupt that can immediately stop the pwm signal and cut power.
+          // TODO: Maybe use a simple transistor and GPIO pin?
+          uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
+          break;
         case GET_SETPOINT_INSTRUCTION:
-          if (instruction.arg_count < 1U) {
-            instruction.status = STATUS_ERR_MISSING_ARGS;
-          } else if (instruction.arg_count > 1U) {
-            instruction.status = STATUS_ERR_TOO_MANY_ARGS;
-          } else {
-            instruction.status = get_setpoint(instruction.args[0], instruction.args[1]);
-          }
+          instruction.status = get_setpoint(instruction.args[0], instruction.args[1]);
           uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
           break;
         case ADD_SETPOINT_INSTRUCTION:
-          if (instruction.arg_count < 3U) {
-            instruction.status = STATUS_ERR_MISSING_ARGS;
-          } else if (instruction.arg_count > 3U) {
-            instruction.status = STATUS_ERR_TOO_MANY_ARGS;
-          } else {
-            instruction.status = add_setpoint(instruction.args[0], instruction.args[1], instruction.args[2], instruction.args[3]);
-          }
+          instruction.status = add_setpoint(instruction.args[0], instruction.args[1], instruction.args[2], instruction.args[3]);
           // TODO: Consider echoing index after adding. Otherwise, user can use get_profile().
+          uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
+          break;
+        case REMOVE_SETPOINT_INSTRUCTION:
+          instruction.status = remove_setpoint(instruction.args[0], instruction.args[1]);
           uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
           break;
         case GET_PROFILE_INSTRUCTION:
@@ -748,8 +797,16 @@ system_state_t instruction_wait_state_handler(void) {
           instruction.status = clear_profile(instruction.args[0]);
           uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
           break;
-        case REMOVE_SETPOINT_INSTRUCTION:
-          instruction.status = remove_setpoint(instruction.args[0], instruction.args[1]);
+        case RUN_PROFILE_INSTRUCTION:
+          instruction.status = run_profile(instruction.args[0]);
+          uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
+          break;
+        case RUN_SETPOINT_INSTRUCTION:
+          instruction.status = run_setpoint(instruction.args[0], instruction.args[1]);
+          uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
+          break;
+        case TEST_SERVOS_INSTRUCTION:
+          instruction.status = test_servos();
           uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
           break;
         case TEST_FLASH_INSTRUCTION:
