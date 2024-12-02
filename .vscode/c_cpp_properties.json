@@ -20,7 +20,8 @@
                 "USE_HAL_DRIVER",
                 "USE_FULL_LL_DRIVER",
                 "USE_FULL_ASSERT",
-                "DEBUG"
+                "DEBUG",
+                "_USE_MATH_DEFINES"
             ],
             "compilerPath": "C:\\mingw64\\bin\\gcc.exe",
             "cStandard": "c17",
