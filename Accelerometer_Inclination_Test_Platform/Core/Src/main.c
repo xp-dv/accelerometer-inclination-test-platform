@@ -295,8 +295,8 @@ status_code_t clear_flash(void) {
   // Erase flash memory by sector
   FLASH_EraseInitTypeDef flash_erase_setup = {
     .TypeErase = FLASH_TYPEERASE_SECTORS,
-    .Sector = SECTOR_NUMBER,
-    .NbSectors = 1,
+    .Sector = FLASH_SECTOR_NUMBER,
+    .NbSectors = 1U,
     .VoltageRange = FLASH_VOLTAGE_RANGE_3,
   };
   uint32_t sector_error = 0;
@@ -379,7 +379,7 @@ status_code_t move(float x_ang, float y_ang, int speed) {
 
 status_code_t get_setpoint(input_t index, input_t profile) {
   // Get setpoint pointer from index and profile arguments
-  setpoint_t* setpoint = (setpoint_t*)(FLASH_USER_START_ADDR + (sizeof(setpoint_t) * index) + (sizeof(setpoint_t) * PROFILE_LEN * profile));
+  setpoint_t* setpoint = SETPOINT_ADDRESS(index, profile);
 
   // Check if requested setpoint contains data
   if (setpoint->x == FLASH_EMPTY && setpoint->y == FLASH_EMPTY && setpoint->speed == FLASH_EMPTY) {
@@ -396,7 +396,7 @@ status_code_t get_setpoint(input_t index, input_t profile) {
 
 status_code_t add_setpoint(input_t x_ang, input_t y_ang, input_t speed, input_t profile) {
   // Get address and index of last setpoint
-  setpoint_t* setpoint = PROFILE_ADDR(profile);
+  setpoint_t* setpoint = PROFILE_ADDRESS(profile);
   input_t index = 0;
   while(index <= INPUT_T_MAX) {
     if (setpoint->x == FLASH_EMPTY && setpoint->y == FLASH_EMPTY && setpoint->speed == FLASH_EMPTY) {
@@ -428,13 +428,13 @@ status_code_t add_setpoint(input_t x_ang, input_t y_ang, input_t speed, input_t 
 
 status_code_t remove_setpoint(input_t index, input_t profile) {
   // Check if requested setpoint contains data
-  setpoint_t* given_setpoint = SETPOINT_ADDR(index, profile);
+  setpoint_t* given_setpoint = SETPOINT_ADDRESS(index, profile);
   if (given_setpoint->x == FLASH_EMPTY && given_setpoint->y == FLASH_EMPTY && given_setpoint->speed == FLASH_EMPTY){
     return STATUS_ERR_INVALID_SETPOINT;
   }
 
   // Get setpoint pointer from index and profile arguments
-  setpoint_t* flash_setpoints = PROFILE_ADDR(profile);
+  setpoint_t* flash_setpoints = PROFILE_ADDRESS(profile);
 
   // Copy the kept setpoints to RAM
   setpoint_t kept_setpoints[PROFILE_LEN];
@@ -472,7 +472,7 @@ status_code_t remove_setpoint(input_t index, input_t profile) {
 
 status_code_t get_profile(input_t profile) {
   // Get setpoint pointer from index and profile arguments
-  setpoint_t* setpoint = PROFILE_ADDR(profile);
+  setpoint_t* setpoint = PROFILE_ADDRESS(profile);
 
   input_t index = 0;
   char uart_tx_buf[UART_TX_BUF_LEN];
@@ -511,10 +511,10 @@ status_code_t get_profile(input_t profile) {
 
 status_code_t clear_profile(input_t profile) {
   // Get setpoint pointer from profile argument
-  setpoint_t* flash_setpoints = (setpoint_t*)(FLASH_USER_START_ADDR);
+  setpoint_t* flash_setpoints = PROFILE_ADDRESS(0U);
 
   // Check if requested profile contains data
-  if ((PROFILE_ADDR(profile))->x == FLASH_EMPTY && (PROFILE_ADDR(profile))->y == FLASH_EMPTY && (PROFILE_ADDR(profile))->speed == FLASH_EMPTY){
+  if (PROFILE_ADDRESS(profile)->x == FLASH_EMPTY && PROFILE_ADDRESS(profile)->y == FLASH_EMPTY && PROFILE_ADDRESS(profile)->speed == FLASH_EMPTY){
     return STATUS_ERR_INVALID_SETPOINT;
   }
 

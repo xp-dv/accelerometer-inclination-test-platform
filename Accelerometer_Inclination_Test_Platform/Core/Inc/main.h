@@ -61,6 +61,7 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define BAUD_RATE 115200
 #define B1_Pin GPIO_PIN_13
 #define B1_GPIO_Port GPIOC
 #define PWM_X_Pin GPIO_PIN_0
@@ -81,8 +82,7 @@ void Error_Handler(void);
 #define ADXL_SDO_GPIO_Port GPIOB
 #define ADXL_SDA_Pin GPIO_PIN_5
 #define ADXL_SDA_GPIO_Port GPIOB
-#define FLASH_USER_START_ADDR ((uint32_t)0x08040000)
-#define SECTOR_NUMBER FLASH_SECTOR_6
+
 /* USER CODE BEGIN Private defines */
 
 // Binary Manipulation
@@ -96,16 +96,20 @@ void Error_Handler(void);
 #define BIT_5_MASK 0x20U
 #define BIT_6_MASK 0x40U
 #define BIT_7_MASK 0x80U
-#define FLASH_EMPTY 0xFFFF
+#define FLASH_EMPTY 0xFFFFU
 
 // User Input
 #define INPUT_T_MAX 999U // Max possible instruction code value
 #define PROFILE_LEN (INPUT_T_MAX + 1U) // 1000 setpoints per profile
 #define INSTRUCTION_MAX_ARGS 4U // Maximum user-enterable parameters per instruction
-#define TOTAL_PROFILES 10
+#define TOTAL_PROFILES 10U
 #define TOTAL_SETPOINTS (TOTAL_PROFILES * PROFILE_LEN)
-#define PROFILE_ADDR(profile) ((setpoint_t*)(FLASH_USER_START_ADDR + (sizeof(setpoint_t) * PROFILE_LEN * profile)))
-#define SETPOINT_ADDR(index, profile) ((setpoint_t*)(FLASH_USER_START_ADDR + (sizeof(setpoint_t) * index) + (sizeof(setpoint_t) * PROFILE_LEN * profile)))
+
+// Flash Memory
+#define FLASH_SECTOR_NUMBER FLASH_SECTOR_6
+#define FLASH_SECTOR_6_BASE 0x08040000UL
+#define PROFILE_ADDRESS(profile) ((setpoint_t*)(FLASH_SECTOR_6_BASE + (sizeof(setpoint_t) * PROFILE_LEN * profile)))
+#define SETPOINT_ADDRESS(index, profile) ((setpoint_t*)(FLASH_SECTOR_6_BASE + (sizeof(setpoint_t) * index) + (sizeof(setpoint_t) * PROFILE_LEN * profile)))
 
 // ADXL Register Map
 #define ADXL_DEVID 0x00U // Device ID
@@ -120,7 +124,6 @@ void Error_Handler(void);
 #define ADXL_SCALE_FACTOR 0.00414
 
 // UART
-#define BAUD_RATE 115200
 #define HUART_PTR &huart2
 #define UART_TX_TIMEOUT 50 // in ms
 #define UART_TX_BUF_LEN 128U
