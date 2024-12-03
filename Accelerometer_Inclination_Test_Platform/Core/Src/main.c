@@ -200,7 +200,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
     }
   }
   // UART Interrupt Rx Reactivate
-  HAL_UART_Receive_IT(HUART_PTR, (uint8_t *)uart_rx_char, 1U); // Receive single char
+  HAL_UART_Receive_IT(huart, (uint8_t *)uart_rx_char, 1U); // Receive single char
 }
 
 //* Internal Functions
@@ -379,7 +379,7 @@ status_code_t move(float x_ang, float y_ang, int speed) {
 
 status_code_t get_setpoint(input_t index, input_t profile) {
   // Get setpoint pointer from index and profile arguments
-  setpoint_t* setpoint = (setpoint_t*)(FLASH_USER_START_ADDR + (sizeof(setpoint_t) * index) + (PROFILE_LEN * profile));
+  setpoint_t* setpoint = (setpoint_t*)(FLASH_USER_START_ADDR + (sizeof(setpoint_t) * index) + (sizeof(setpoint_t) * PROFILE_LEN * profile));
 
   // Check if requested setpoint contains data
   if (setpoint->x == FLASH_EMPTY && setpoint->y == FLASH_EMPTY && setpoint->speed == FLASH_EMPTY) {
@@ -396,7 +396,7 @@ status_code_t get_setpoint(input_t index, input_t profile) {
 
 status_code_t add_setpoint(input_t x_ang, input_t y_ang, input_t speed, input_t profile) {
   // Get address and index of last setpoint
-  setpoint_t* setpoint = (setpoint_t*)(FLASH_USER_START_ADDR + (PROFILE_LEN * profile));
+  setpoint_t* setpoint = (setpoint_t*)(FLASH_USER_START_ADDR + (sizeof(setpoint_t) * PROFILE_LEN * profile));
   input_t index = 0;
   while(index <= INPUT_T_MAX) {
     if (setpoint->x == FLASH_EMPTY && setpoint->y == FLASH_EMPTY && setpoint->speed == FLASH_EMPTY) {
@@ -428,7 +428,7 @@ status_code_t add_setpoint(input_t x_ang, input_t y_ang, input_t speed, input_t 
 
 status_code_t remove_setpoint(input_t index, input_t profile) {
   // Get setpoint pointer from index and profile arguments
-  setpoint_t* flash_setpoints = (setpoint_t*)(FLASH_USER_START_ADDR + (sizeof(setpoint_t) * index) + (PROFILE_LEN * profile));
+  setpoint_t* flash_setpoints = (setpoint_t*)(FLASH_USER_START_ADDR + (sizeof(setpoint_t) * index) + (sizeof(setpoint_t) * PROFILE_LEN * profile));
 
   // Check if requested setpoint contains data
   if (flash_setpoints->x == FLASH_EMPTY && flash_setpoints->y == FLASH_EMPTY && flash_setpoints->speed == FLASH_EMPTY){
@@ -436,10 +436,10 @@ status_code_t remove_setpoint(input_t index, input_t profile) {
   }
 
   // Copy the kept setpoints to RAM
-  setpoint_t kept_setpoints[INPUT_T_MAX];
+  setpoint_t kept_setpoints[PROFILE_LEN];
   input_t new_index = 0;
 
-  for (input_t i = 0; i <= INPUT_T_MAX; i++) {
+  for (input_t i = 0; i < PROFILE_LEN; i++) {
     // Copy all setpoints excluding the specified index
     if (i != index) {
       kept_setpoints[new_index++] = flash_setpoints[i];
@@ -457,6 +457,7 @@ status_code_t remove_setpoint(input_t index, input_t profile) {
     if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(flash_setpoints[i].x)), kept_setpoints[i].x) != HAL_OK ||
         HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(flash_setpoints[i].y)), kept_setpoints[i].y) != HAL_OK ||
         HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(flash_setpoints[i].speed)), kept_setpoints[i].speed) != HAL_OK) {
+      // Lock flash memory after writing
       HAL_FLASH_Lock();
       return STATUS_ERR_FLASH_WRITE_FAILED;
     }
@@ -470,7 +471,7 @@ status_code_t remove_setpoint(input_t index, input_t profile) {
 
 status_code_t get_profile(input_t profile) {
   // Get setpoint pointer from index and profile arguments
-  setpoint_t* setpoint = (setpoint_t*)(FLASH_USER_START_ADDR + (PROFILE_LEN * profile));
+  setpoint_t* setpoint = (setpoint_t*)(FLASH_USER_START_ADDR + (sizeof(setpoint_t) * PROFILE_LEN * profile));
 
   input_t index = 0;
   char uart_tx_buf[UART_TX_BUF_LEN];
@@ -509,20 +510,17 @@ status_code_t get_profile(input_t profile) {
 
 status_code_t clear_profile(input_t profile) {
   // Get setpoint pointer from profile argument
-  setpoint_t* flash_setpoints = (setpoint_t*)(FLASH_USER_START_ADDR + (PROFILE_LEN * profile));
-
-  // Check if requested profile contains data
-  if (flash_setpoints->x == FLASH_EMPTY && flash_setpoints->y == FLASH_EMPTY && flash_setpoints->speed == FLASH_EMPTY){
-    return STATUS_ERR_INVALID_SETPOINT;
-  }
+  setpoint_t* flash_setpoints = (setpoint_t*)(FLASH_USER_START_ADDR);
 
   // Copy the setpoints from all the kept profiles to RAM
-  setpoint_t kept_setpoints[TOTAL_PROFILES * PROFILE_LEN];
-  for (input_t i = 0; i <= TOTAL_PROFILES; i += PROFILE_LEN) {
+  setpoint_t kept_setpoints[TOTAL_SETPOINTS];
+  memset(kept_setpoints, FLASH_EMPTY, sizeof(kept_setpoints));
+  for (input_t i = 0; i < TOTAL_SETPOINTS; i += PROFILE_LEN) {
     // Copy all setpoints excluding the specified index
-    if (i != profile) {
-      memcpy(&kept_setpoints[i], &flash_setpoints[i], (PROFILE_LEN * sizeof(setpoint_t)));
+    if (i >= (PROFILE_LEN * profile) && i < (PROFILE_LEN * (profile + 1))) {
+      continue;
     }
+    memcpy(&kept_setpoints[i], &flash_setpoints[i], (PROFILE_LEN * sizeof(setpoint_t)));
   }
 
   // Clear all profiles from flash. Note:
@@ -535,11 +533,12 @@ status_code_t clear_profile(input_t profile) {
   HAL_FLASH_Unlock();
 
   // Write back all profiles into flash except for the specified profile
-  for (input_t i = 0; i < TOTAL_PROFILES * PROFILE_LEN; i++) {
+  for (uint16_t i = 0; i < TOTAL_SETPOINTS; ++i) {
     if (kept_setpoints[i].x != FLASH_EMPTY && kept_setpoints[i].y != FLASH_EMPTY && kept_setpoints[i].speed != FLASH_EMPTY) {
       if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(flash_setpoints[i].x)), kept_setpoints[i].x) != HAL_OK ||
           HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(flash_setpoints[i].y)), kept_setpoints[i].y) != HAL_OK ||
           HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(flash_setpoints[i].speed)), kept_setpoints[i].speed) != HAL_OK) {
+        // Lock flash memory after writing
         HAL_FLASH_Lock();
         return STATUS_ERR_FLASH_WRITE_FAILED;
       }
@@ -727,6 +726,9 @@ system_state_t startup_state_handler(void) {
   //* UART
   // Rx Interrupt Setup
   HAL_UART_Receive_IT(HUART_PTR, (uint8_t *)uart_rx_char, 1U); // Receive single char
+  // Startup Message
+  uint8_t startup_msg[] = "[00]\n"; // STATUS_OK / Device is ready
+  HAL_UART_Transmit(HUART_PTR, startup_msg, strlen((char*)startup_msg), UART_TX_TIMEOUT);
 
   return INSTRUCTION_WAIT_STATE;
 }
