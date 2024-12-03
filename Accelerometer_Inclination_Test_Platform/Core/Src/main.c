@@ -84,8 +84,8 @@ typedef enum {
   STATUS_ERR_TOO_MANY_ARGS,
   STATUS_ERR_ARG_OUT_OF_RANGE,
   //* Thrown by user data functions
-  STATUS_ERR_INVALID_SETPOINT,
-  STATUS_ERR_SETPOINTS_FULL,
+  STATUS_ERR_INVALID_SETPOINT, // The given setpoint or profile does not contain data
+  STATUS_ERR_PROFILE_FULL,
   STATUS_ERR_EMPTY_PROFILE,
   STATUS_ERR_FLASH_WRITE_FAILED,
 } status_code_t;
@@ -396,14 +396,14 @@ status_code_t get_setpoint(input_t index, input_t profile) {
 
 status_code_t add_setpoint(input_t x_ang, input_t y_ang, input_t speed, input_t profile) {
   // Get address and index of last setpoint
-  setpoint_t* setpoint = SETPOINT_ADDR(profile);
+  setpoint_t* setpoint = PROFILE_ADDR(profile);
   input_t index = 0;
   while(index <= INPUT_T_MAX) {
     if (setpoint->x == FLASH_EMPTY && setpoint->y == FLASH_EMPTY && setpoint->speed == FLASH_EMPTY) {
       break;
     }
     if (index == INPUT_T_MAX) {
-      return STATUS_ERR_SETPOINTS_FULL;
+      return STATUS_ERR_PROFILE_FULL;
     }
     ++setpoint;
     ++index;
@@ -427,13 +427,14 @@ status_code_t add_setpoint(input_t x_ang, input_t y_ang, input_t speed, input_t 
 }
 
 status_code_t remove_setpoint(input_t index, input_t profile) {
-  // Get setpoint pointer from index and profile arguments
-  setpoint_t* flash_setpoints = SETPOINT_ADDR(profile);
-
   // Check if requested setpoint contains data
-  if (flash_setpoints->x == FLASH_EMPTY && flash_setpoints->y == FLASH_EMPTY && flash_setpoints->speed == FLASH_EMPTY){
+  setpoint_t* given_setpoint = SETPOINT_ADDR(index, profile);
+  if (given_setpoint->x == FLASH_EMPTY && given_setpoint->y == FLASH_EMPTY && given_setpoint->speed == FLASH_EMPTY){
     return STATUS_ERR_INVALID_SETPOINT;
   }
+
+  // Get setpoint pointer from index and profile arguments
+  setpoint_t* flash_setpoints = PROFILE_ADDR(profile);
 
   // Copy the kept setpoints to RAM
   setpoint_t kept_setpoints[PROFILE_LEN];
@@ -471,7 +472,7 @@ status_code_t remove_setpoint(input_t index, input_t profile) {
 
 status_code_t get_profile(input_t profile) {
   // Get setpoint pointer from index and profile arguments
-  setpoint_t* setpoint = SETPOINT_ADDR(profile);
+  setpoint_t* setpoint = PROFILE_ADDR(profile);
 
   input_t index = 0;
   char uart_tx_buf[UART_TX_BUF_LEN];
@@ -511,6 +512,11 @@ status_code_t get_profile(input_t profile) {
 status_code_t clear_profile(input_t profile) {
   // Get setpoint pointer from profile argument
   setpoint_t* flash_setpoints = (setpoint_t*)(FLASH_USER_START_ADDR);
+
+  // Check if requested profile contains data
+  if ((PROFILE_ADDR(profile))->x == FLASH_EMPTY && (PROFILE_ADDR(profile))->y == FLASH_EMPTY && (PROFILE_ADDR(profile))->speed == FLASH_EMPTY){
+    return STATUS_ERR_INVALID_SETPOINT;
+  }
 
   // Copy the setpoints from all the kept profiles to RAM
   setpoint_t kept_setpoints[TOTAL_SETPOINTS];
@@ -727,7 +733,7 @@ system_state_t startup_state_handler(void) {
   // Rx Interrupt Setup
   HAL_UART_Receive_IT(HUART_PTR, (uint8_t *)uart_rx_char, 1U); // Receive single char
   // Startup Message
-  uint8_t startup_msg[] = "[00]\n"; // STATUS_OK / Device is ready
+  uint8_t startup_msg[] = "[00]{0}\n"; // STATUS_OK / Device is ready
   HAL_UART_Transmit(HUART_PTR, startup_msg, strlen((char*)startup_msg), UART_TX_TIMEOUT);
 
   return INSTRUCTION_WAIT_STATE;

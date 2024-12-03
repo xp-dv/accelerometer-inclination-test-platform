@@ -104,7 +104,8 @@ void Error_Handler(void);
 #define INSTRUCTION_MAX_ARGS 4U // Maximum user-enterable parameters per instruction
 #define TOTAL_PROFILES 10
 #define TOTAL_SETPOINTS (TOTAL_PROFILES * PROFILE_LEN)
-#define SETPOINT_ADDR(profile) ((setpoint_t*)(FLASH_USER_START_ADDR + (sizeof(setpoint_t) * PROFILE_LEN * profile)))
+#define PROFILE_ADDR(profile) ((setpoint_t*)(FLASH_USER_START_ADDR + (sizeof(setpoint_t) * PROFILE_LEN * profile)))
+#define SETPOINT_ADDR(index, profile) ((setpoint_t*)(FLASH_USER_START_ADDR + (sizeof(setpoint_t) * index) + (sizeof(setpoint_t) * PROFILE_LEN * profile)))
 
 // ADXL Register Map
 #define ADXL_DEVID 0x00U // Device ID
