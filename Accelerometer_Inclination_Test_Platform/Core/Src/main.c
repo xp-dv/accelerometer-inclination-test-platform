@@ -396,7 +396,7 @@ status_code_t get_setpoint(input_t index, input_t profile) {
 
 status_code_t add_setpoint(input_t x_ang, input_t y_ang, input_t speed, input_t profile) {
   // Get address and index of last setpoint
-  setpoint_t* setpoint = (setpoint_t*)(FLASH_USER_START_ADDR + (sizeof(setpoint_t) * PROFILE_LEN * profile));
+  setpoint_t* setpoint = SETPOINT_ADDR(profile);
   input_t index = 0;
   while(index <= INPUT_T_MAX) {
     if (setpoint->x == FLASH_EMPTY && setpoint->y == FLASH_EMPTY && setpoint->speed == FLASH_EMPTY) {
@@ -428,7 +428,7 @@ status_code_t add_setpoint(input_t x_ang, input_t y_ang, input_t speed, input_t 
 
 status_code_t remove_setpoint(input_t index, input_t profile) {
   // Get setpoint pointer from index and profile arguments
-  setpoint_t* flash_setpoints = (setpoint_t*)(FLASH_USER_START_ADDR + (sizeof(setpoint_t) * index) + (sizeof(setpoint_t) * PROFILE_LEN * profile));
+  setpoint_t* flash_setpoints = SETPOINT_ADDR(profile);
 
   // Check if requested setpoint contains data
   if (flash_setpoints->x == FLASH_EMPTY && flash_setpoints->y == FLASH_EMPTY && flash_setpoints->speed == FLASH_EMPTY){
@@ -439,8 +439,8 @@ status_code_t remove_setpoint(input_t index, input_t profile) {
   setpoint_t kept_setpoints[PROFILE_LEN];
   input_t new_index = 0;
 
+  // Copy all setpoints excluding the specified index
   for (input_t i = 0; i < PROFILE_LEN; i++) {
-    // Copy all setpoints excluding the specified index
     if (i != index) {
       kept_setpoints[new_index++] = flash_setpoints[i];
     }
@@ -471,7 +471,7 @@ status_code_t remove_setpoint(input_t index, input_t profile) {
 
 status_code_t get_profile(input_t profile) {
   // Get setpoint pointer from index and profile arguments
-  setpoint_t* setpoint = (setpoint_t*)(FLASH_USER_START_ADDR + (sizeof(setpoint_t) * PROFILE_LEN * profile));
+  setpoint_t* setpoint = SETPOINT_ADDR(profile);
 
   input_t index = 0;
   char uart_tx_buf[UART_TX_BUF_LEN];
