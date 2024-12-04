@@ -378,6 +378,11 @@ status_code_t move(float x_ang, float y_ang, int speed) {
 // Attempts to stop platform. If platform does not stop, reset stm board.
 
 status_code_t get_setpoint(input_t index, input_t profile) {
+  //check arguments for valid values 
+   if ((profile < PROFILE_ARG_MIN || profile > PROFILE_ARG_MAX) ||
+    (index < INDEX_ARG_MIN || index > INDEX_ARG_MAX)) {
+    return STATUS_ERR_INVALID_ARG;
+    }
   // Get setpoint pointer from index and profile arguments
   setpoint_t* setpoint = SETPOINT_ADDRESS(index, profile);
 
@@ -395,6 +400,13 @@ status_code_t get_setpoint(input_t index, input_t profile) {
 }
 
 status_code_t add_setpoint(input_t x_ang, input_t y_ang, input_t speed, input_t profile) {
+  //check arguments for valid values
+    if ((profile < PROFILE_ARG_MIN || profile > PROFILE_ARG_MAX) ||
+        (x_ang < ANGLE_ARG_MIN || x_ang > ANGLE_ARG_MAX) ||
+        (y_ang < ANGLE_ARG_MIN || y_ang > ANGLE_ARG_MAX) ||
+        (speed < SPEED_ARG_MIN || speed > SPEED_ARG_MAX)) {
+        return STATUS_ERR_INVALID_ARG; // Return error if any argument is out of range
+    }
   // Get address and index of last setpoint
   setpoint_t* setpoint = PROFILE_ADDRESS(profile);
   input_t index = 0;
@@ -427,6 +439,11 @@ status_code_t add_setpoint(input_t x_ang, input_t y_ang, input_t speed, input_t 
 }
 
 status_code_t remove_setpoint(input_t index, input_t profile) {
+  //check arguments for valid values
+  if ((profile < PROFILE_ARG_MIN || profile > PROFILE_ARG_MAX) ||
+    (index < INDEX_ARG_MIN || index > INDEX_ARG_MAX)) {
+    return STATUS_ERR_INVALID_ARG;
+    }
   // Check if requested setpoint contains data
   setpoint_t* given_setpoint = SETPOINT_ADDRESS(index, profile);
   if (given_setpoint->x == FLASH_EMPTY && given_setpoint->y == FLASH_EMPTY && given_setpoint->speed == FLASH_EMPTY){
@@ -471,6 +488,11 @@ status_code_t remove_setpoint(input_t index, input_t profile) {
 }
 
 status_code_t get_profile(input_t profile) {
+  //check arguments for valid values
+     if (profile < PROFILE_ARG_MIN || profile > PROFILE_ARG_MAX) {
+        return  STATUS_ERR_INVALID_ARG; // Return an error code for invalid profile
+    }
+   
   // Get setpoint pointer from index and profile arguments
   setpoint_t* setpoint = PROFILE_ADDRESS(profile);
 
@@ -510,6 +532,10 @@ status_code_t get_profile(input_t profile) {
 }
 
 status_code_t clear_profile(input_t profile) {
+  //check arguments for valid values
+   if (profile < PROFILE_ARG_MIN || profile > PROFILE_ARG_MAX) {
+        return  STATUS_ERR_INVALID_ARG; // Return an error code for invalid profile
+    }
   // Get setpoint pointer from profile argument
   setpoint_t* flash_setpoints = PROFILE_ADDRESS(0U);
 
