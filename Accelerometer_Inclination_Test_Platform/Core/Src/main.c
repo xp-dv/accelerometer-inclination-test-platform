@@ -496,6 +496,11 @@ status_code_t get_profile(input_t profile) {
   // Get setpoint pointer from index and profile arguments
   setpoint_t* setpoint = PROFILE_ADDRESS(profile);
 
+// Check if requested profile contains data
+  if (PROFILE_ADDRESS(profile)->x == FLASH_EMPTY && PROFILE_ADDRESS(profile)->y == FLASH_EMPTY && PROFILE_ADDRESS(profile)->speed == FLASH_EMPTY){
+    return STATUS_ERR_EMPTY_PROFILE;
+  }
+  
   input_t index = 0;
   char uart_tx_buf[UART_TX_BUF_LEN];
   // Transmit start indicator and first setpoint index
@@ -541,7 +546,7 @@ status_code_t clear_profile(input_t profile) {
 
   // Check if requested profile contains data
   if (PROFILE_ADDRESS(profile)->x == FLASH_EMPTY && PROFILE_ADDRESS(profile)->y == FLASH_EMPTY && PROFILE_ADDRESS(profile)->speed == FLASH_EMPTY){
-    return STATUS_ERR_INVALID_SETPOINT;
+    return STATUS_ERR_EMPTY_PROFILE;
   }
 
   // Copy the setpoints from all the kept profiles to RAM
