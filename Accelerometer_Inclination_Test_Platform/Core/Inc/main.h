@@ -108,12 +108,12 @@ void Error_Handler(void);
 // User-Facing Function Argument Limitations
 #define PROFILE_ARG_MIN 0U
 #define PROFILE_ARG_MAX 9U
-#define INDEX_ARG_MIN 0
-#define INDEX_ARG_MAX 999
-#define ANGLE_ARG_MIN 0
-#define ANGLE_ARG_MAX 90
-#define SPEED_ARG_MIN 0
-#define SPEED_ARG_MAX 5
+#define INDEX_ARG_MIN 0U
+#define INDEX_ARG_MAX 999U
+#define ANGLE_ARG_MIN 0U
+#define ANGLE_ARG_MAX 90U
+#define SPEED_ARG_MIN 0U
+#define SPEED_ARG_MAX 5U
 // Flash Memory
 #define FLASH_SECTOR_NUMBER FLASH_SECTOR_6
 #define FLASH_SECTOR_6_BASE 0x08040000UL
