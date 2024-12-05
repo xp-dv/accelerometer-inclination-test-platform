@@ -405,7 +405,7 @@ status_code_t add_setpoint(input_t x_ang, input_t y_ang, input_t speed, input_t 
         (x_ang < ANGLE_ARG_MIN || x_ang > ANGLE_ARG_MAX) ||
         (y_ang < ANGLE_ARG_MIN || y_ang > ANGLE_ARG_MAX) ||
         (speed < SPEED_ARG_MIN || speed > SPEED_ARG_MAX)) {
-        return STATUS_ERR_INVALID_ARG; // Return error if any argument is out of range
+        return STATUS_ERR_INVALID_ARG;                       // Return error if any argument is out of range
     }
   // Get address and index of last setpoint
   setpoint_t* setpoint = PROFILE_ADDRESS(profile);
@@ -500,7 +500,7 @@ status_code_t get_profile(input_t profile) {
   if (PROFILE_ADDRESS(profile)->x == FLASH_EMPTY && PROFILE_ADDRESS(profile)->y == FLASH_EMPTY && PROFILE_ADDRESS(profile)->speed == FLASH_EMPTY){
     return STATUS_ERR_EMPTY_PROFILE;
   }
-  
+
   input_t index = 0;
   char uart_tx_buf[UART_TX_BUF_LEN];
   // Transmit start indicator and first setpoint index
@@ -544,10 +544,6 @@ status_code_t clear_profile(input_t profile) {
   // Get setpoint pointer from profile argument
   setpoint_t* flash_setpoints = PROFILE_ADDRESS(0U);
 
-  // Check if requested profile contains data
-  if (PROFILE_ADDRESS(profile)->x == FLASH_EMPTY && PROFILE_ADDRESS(profile)->y == FLASH_EMPTY && PROFILE_ADDRESS(profile)->speed == FLASH_EMPTY){
-    return STATUS_ERR_EMPTY_PROFILE;
-  }
 
   // Copy the setpoints from all the kept profiles to RAM
   setpoint_t kept_setpoints[TOTAL_SETPOINTS];
@@ -731,12 +727,17 @@ status_code_t test_flash(void) {
     status = clear_profile(profile);
     if (status != STATUS_OK) {
       return status;
+
     }
 
-    for (uint16_t data = 0; data < 300U; data += 3U) {
-      status = add_setpoint(data, (data + 1U), (data + 2U), profile);
+    uint16_t arg1 = profile ; // Set the first argument as the profile index + 1
+    uint16_t arg2 = profile ; // Set the second argument as the profile index + 1
+   
+    // Populate setpoints for each profile
+    for (uint16_t data = 0; data < 300U; data += 1) {
+      status = add_setpoint(arg1, arg2, 1, profile);  // Add the specific setpoint for this profile
       if (status != STATUS_OK) {
-        return status;
+        return status;  // Stop if an error occurs while adding setpoints
       }
     }
 

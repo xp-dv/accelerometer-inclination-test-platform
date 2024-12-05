@@ -112,8 +112,8 @@ void Error_Handler(void);
 #define INDEX_ARG_MAX 999U
 #define ANGLE_ARG_MIN 0U
 #define ANGLE_ARG_MAX 90U
-#define SPEED_ARG_MIN 0U
-#define SPEED_ARG_MAX 5U
+#define SPEED_ARG_MIN 1U
+#define SPEED_ARG_MAX 10U
 // Flash Memory
 #define FLASH_SECTOR_NUMBER FLASH_SECTOR_6
 #define FLASH_SECTOR_6_BASE 0x08040000UL
