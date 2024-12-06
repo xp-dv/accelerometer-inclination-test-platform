@@ -45,7 +45,6 @@ typedef enum {
   STARTUP_STATE,
   IDLE_STATE,
   RUN_STATE,
-
 } system_state_t;
 
 typedef enum {
@@ -105,6 +104,52 @@ typedef struct setpoint {
   input_t speed; // Multiplier for the PID controller’s Proportional constant
 } setpoint_t;
 
+// Struct for active setpoint for pid control
+typedef struct active_setpoint {
+  int x;
+  int y;
+  int speed;
+  int error;
+} active_setpoint_t;
+
+typedef enum{
+  OFF_FLAG,
+  MOVE_FLAG,
+  RUN_SETPOINT_FLAG,
+} run_flag_t;
+
+// Struct for PID controller
+typedef struct {
+  // Controller gain constants
+  float Kp;
+  float Ki;
+  float Kd;
+
+  // Derivative low-pass filter time constant
+  float tau;
+
+  // Output limits
+  float limMin;
+  float limMax;
+
+  // Integrator limits
+  float limMinInt;
+  float limMaxInt;
+
+  // Sample time (in seconds)
+  float T;
+
+  // Controller "memory"
+  float integrator;
+  float prevError;      // Required for integrator
+  float differentiator;
+  float prevMeasurement;    // Required for differentiator
+
+  // Controller output
+  float out;
+
+} pidcontroller_t;
+
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -144,6 +189,25 @@ char uart_rx_char[2]; // Stores Rx char and string terminator
 char uart_circ_buf[UART_RX_BUF_LEN]; // Circular Rx Buffer
 uint8_t instruction_flag = 0;
 status_code_t uart_it_status = STATUS_OK;
+
+//pid control
+int current_setpoint_x;
+int current_setpoint_y;
+float current_position_x;
+float current_position_y;
+float pid_x;
+float pid_y;
+float pulse_width_x;
+float pulse_width_y;
+pidcontroller_t pid = {
+  .integrator = 0.0,
+  .prevError  = 0.0,
+  .differentiator  = 0.0,
+  .prevMeasurement = 0.0,
+  .out = 0.0
+};
+active_setpoint_t active_setpoint;
+run_flag_t run_flag = OFF_FLAG;
 
 //* Startup State
 system_state_t next_state_e = STARTUP_STATE;
@@ -376,20 +440,65 @@ void adxl_read(void) {
 }
 
 //* Instruction Functions
-status_code_t move(float x_ang, float y_ang, int speed) {
-  /**
-   * TASK:
-   * ! current_position = adxl_read();
-   * PID_Update();
-   * Function to translate x_ang, y_ang, & speed from degrees to CCR value
-   * Set CCR values to final calculated position
-   */
-  /**
-   * TODO:
-   * Servo Control and Accelerometer Sampling Timer (Basically the system clock)
-   * HAL_TIM_Base_Start(&htim1); // Clock (APB2) = 84 MHz. If Prescaler = (84 - 1) & Max Timer Count = (2^16 - 1), then f = 84 MHz / 84 = 1 MHz, T = 1 us, and Max Delay = (2^16 - 1) * T = 65.535 ms
-   */
+status_code_t move(float x, float y, int speed) {
+  next_state_e = RUN_STATE;
+
+  //active_setpoint.x = PULSE_WIDTH_0 + (PULSE_WIDTH_RANGE / (270/pid_x));
+  //active_setpoint.y= PULSE_WIDTH_0 + (PULSE_WIDTH_RANGE / (270/pid_y));
+  //active_setpoint.speed = speed;
+  
+  active_setpoint.x = PULSE_WIDTH_POS_90;
+  active_setpoint.y= PULSE_WIDTH_POS_90;
+  active_setpoint.speed = 1;
+
+  uint8_t test_msg[UART_TX_BUF_LEN];
+  sprintf((char*)test_msg, "{%d %d %d}\n", active_setpoint.x, active_setpoint.y, active_setpoint.speed);
+  HAL_UART_Transmit(HUART_PTR, test_msg, strlen((char*)test_msg), UART_TX_TIMEOUT);
+  sprintf((char*)test_msg, "{%d}\n", next_state_e);
+  HAL_UART_Transmit(HUART_PTR, test_msg, strlen((char*)test_msg), UART_TX_TIMEOUT);
+
+  CCR_X = PULSE_WIDTH_0;
+  CCR_Y = PULSE_WIDTH_0;
+
   return STATUS_OK;
+}
+
+status_code_t run_setpoint(input_t index, input_t profile) {
+  // TODO: Allows the user to recall a setpoint out of a specific profile instead of remembering/storing it for move().
+  next_state_e = RUN_STATE;
+  //run_flag = RUN_SETPOINT_FLAG;
+  setpoint_t* setpoint = SETPOINT_ADDRESS(index, profile);
+  active_setpoint.x = setpoint->x;
+  active_setpoint.y = setpoint->y;
+  active_setpoint.speed = setpoint->speed;
+  //convert speed to Kp value, save to struct
+  pid.Kp = (pid.Kp) * (active_setpoint.speed)/10;
+
+  return STATUS_OK;
+}
+
+status_code_t run_profile(input_t profile) {
+  next_state_e = RUN_STATE;
+  //run_flag = RUN_SETPOINT_FLAG;
+  for (int index = 0; index < PROFILE_LEN;) {
+    setpoint_t* setpoint = SETPOINT_ADDRESS(index, profile);
+    active_setpoint.x = setpoint->x;
+    active_setpoint.y = setpoint->y;
+    active_setpoint.speed = setpoint->speed;
+    //convert speed to Kp value, save to struct
+    pid.Kp = (pid.Kp) * (active_setpoint.speed)/10;
+
+    if (active_setpoint.x == FLASH_EMPTY && active_setpoint.y == FLASH_EMPTY && active_setpoint.speed == FLASH_EMPTY) {
+      // echo status OK
+      run_flag = OFF_FLAG;
+    }
+    run_setpoint(index, profile);
+    if (active_setpoint.error == 0) { // setpoint reached
+      ++index; // move to next setpoint
+    }
+  }
+
+  return STATUS_OK; 
 }
 
 status_code_t stop() {
@@ -401,11 +510,11 @@ status_code_t stop() {
 }
 
 status_code_t get_setpoint(input_t index, input_t profile) {
-  //check arguments for valid values 
-   if ((profile < PROFILE_ARG_MIN || profile > PROFILE_ARG_MAX) ||
+  // Check argument range 
+  if ((profile < PROFILE_ARG_MIN || profile > PROFILE_ARG_MAX) ||
     (index < INDEX_ARG_MIN || index > INDEX_ARG_MAX)) {
     return STATUS_ERR_ARG_OUT_OF_RANGE;
-    }
+  }
   // Get setpoint pointer from index and profile arguments
   setpoint_t* setpoint = SETPOINT_ADDRESS(index, profile);
 
@@ -423,13 +532,13 @@ status_code_t get_setpoint(input_t index, input_t profile) {
 }
 
 status_code_t add_setpoint(input_t x, input_t y, input_t speed, input_t profile) {
-  //check arguments for valid values
-    if ((profile < PROFILE_ARG_MIN || profile > PROFILE_ARG_MAX) ||
-        (x < ANGLE_ARG_MIN || x > ANGLE_ARG_MAX) ||
-        (y < ANGLE_ARG_MIN || y > ANGLE_ARG_MAX) ||
-        (speed < SPEED_ARG_MIN || speed > SPEED_ARG_MAX)) {
-        return STATUS_ERR_INVALID_ARG; // Return error if any argument is out of range
-    }
+  // Check argument range
+  if ((profile < PROFILE_ARG_MIN || profile > PROFILE_ARG_MAX) ||
+      (x < ANGLE_ARG_MIN || x > ANGLE_ARG_MAX) ||
+      (y < ANGLE_ARG_MIN || y > ANGLE_ARG_MAX) ||
+      (speed < SPEED_ARG_MIN || speed > SPEED_ARG_MAX)) {
+      return STATUS_ERR_INVALID_ARG; // Return error if any argument is out of range
+  }
   // Get address and index of last setpoint
   setpoint_t* setpoint = PROFILE_ADDRESS(profile);
   input_t index = 0;
@@ -462,7 +571,7 @@ status_code_t add_setpoint(input_t x, input_t y, input_t speed, input_t profile)
 }
 
 status_code_t remove_setpoint(input_t index, input_t profile) {
-  //check arguments for valid values
+  // Check argument range
   if ((profile < PROFILE_ARG_MIN || profile > PROFILE_ARG_MAX) ||
     (index < INDEX_ARG_MIN || index > INDEX_ARG_MAX)) {
     return STATUS_ERR_ARG_OUT_OF_RANGE;
@@ -511,7 +620,7 @@ status_code_t remove_setpoint(input_t index, input_t profile) {
 }
 
 status_code_t get_profile(input_t profile) {
-  //check arguments for valid values
+  // Check argument range
      if (profile < PROFILE_ARG_MIN || profile > PROFILE_ARG_MAX) {
         return  STATUS_ERR_ARG_OUT_OF_RANGE; // Return an error code for invalid profile
     }
@@ -560,7 +669,7 @@ status_code_t get_profile(input_t profile) {
 }
 
 status_code_t clear_profile(input_t profile) {
-  //check arguments for valid values
+  // Check argument range
   if (profile < PROFILE_ARG_MIN || profile > PROFILE_ARG_MAX) {
     return  STATUS_ERR_ARG_OUT_OF_RANGE; // Return an error code for invalid profile
   }
@@ -607,17 +716,6 @@ status_code_t clear_profile(input_t profile) {
 
   // Lock flash memory after writing
   HAL_FLASH_Lock();
-
-  return STATUS_OK;
-}
-
-status_code_t run_profile(input_t profile) {
-
-  return STATUS_OK;
-}
-
-status_code_t run_setpoint(input_t index, input_t profile) {
-  // TODO: Allows the user to recall a setpoint out of a specific profile instead of remembering/storing it for move().
 
   return STATUS_OK;
 }
@@ -952,10 +1050,19 @@ system_state_t idle_state_handler(void) {
 }
 
 system_state_t run_state_handler(void) {
-  // Listen for stop commands
-  // Run test setpoint
-  // Calls move servo function
-  return IDLE_STATE;
+  if (next_state_e != RUN_STATE) {
+    return IDLE_STATE;
+  }
+  int step_speed = 100/active_setpoint.speed; 
+
+  CCR_X = CCR_X + (active_setpoint.x/step_speed);
+  CCR_Y = CCR_Y + (active_setpoint.y/step_speed);
+ 
+  HAL_Delay(100);
+  if (CCR_X == active_setpoint.x && CCR_Y == active_setpoint.y) {
+    return IDLE_STATE;
+  }
+  return RUN_STATE;
 }
 
 /* USER CODE END 0 */
@@ -1020,7 +1127,7 @@ int main(void)
       case IDLE_STATE:
         break;
       case RUN_STATE:
-          
+        next_state_e = run_state_handler();
         break;
       default:
         next_state_e = startup_state_handler();
