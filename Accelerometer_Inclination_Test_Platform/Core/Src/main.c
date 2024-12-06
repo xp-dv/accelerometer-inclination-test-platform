@@ -374,8 +374,13 @@ status_code_t move(float x_ang, float y_ang, int speed) {
   return STATUS_OK;
 }
 
-// ! Do not create stop() function here. Trigger an interrupt from the instruction_handler() for the stop instruction, instead.
-// Attempts to stop platform. If platform does not stop, reset stm board.
+status_code_t stop() {
+  // Stop pwm signals to stop platforms/servos
+  HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1);
+  HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_2);
+
+  return STATUS_OK;
+}
 
 status_code_t get_setpoint(input_t index, input_t profile) {
   //check arguments for valid values 
@@ -591,21 +596,6 @@ status_code_t run_profile(input_t profile) {
 
 status_code_t run_setpoint(input_t index, input_t profile) {
   // TODO: Allows the user to recall a setpoint out of a specific profile instead of remembering/storing it for move().
-
-  return STATUS_OK;
-}
-
-status_code_t stop()
-{
-  //stop pwm signals to stop platforms/servos
-  HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1);
-  HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_2);
-
-  //return platform to idle position
-  CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // Center X-axis
-  CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // Center Y-axis
-  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
-  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
 
   return STATUS_OK;
 }
