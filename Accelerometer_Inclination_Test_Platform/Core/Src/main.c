@@ -40,6 +40,7 @@
 /* USER CODE BEGIN PTD */
 
 typedef uint16_t input_t; // Typedef set to fit numbers of size INPUT_T_MAX
+typedef uint16_t ccr_t; // Typedef set to fit CCR register value >= 0 and <= 20000
 
 typedef enum {
   STARTUP_STATE,
@@ -51,6 +52,8 @@ typedef enum {
   // Instruction code 0 = RESERVED
   // Motion Commands
   MOVE_INSTRUCTION = 1,
+  RUN_SETPOINT_INSTRUCTION,
+  RUN_PROFILE_INSTRUCTION,
   STOP_INSTRUCTION,
   // Setpoint Commands
   GET_SETPOINT_INSTRUCTION,
@@ -59,8 +62,6 @@ typedef enum {
   // Profile Commands
   GET_PROFILE_INSTRUCTION,
   CLEAR_PROFILE_INSTRUCTION,
-  RUN_PROFILE_INSTRUCTION,
-  RUN_SETPOINT_INSTRUCTION,
   // Test Commands
   TEST_SERVOS_INSTRUCTION = 995U,
   TEST_ADXL_INSTRUCTION,
@@ -106,9 +107,9 @@ typedef struct setpoint {
 
 // Struct for active setpoint for pid control
 typedef struct active_setpoint {
-  int x;
-  int y;
-  int speed;
+  ccr_t x;
+  ccr_t y;
+  input_t speed;
   int error;
 } active_setpoint_t;
 
@@ -235,7 +236,7 @@ void adxl_init(void);
 void adxl_read(void);
 
 //* Instruction Function Prototypes
-status_code_t move(float x_ang, float y_ang, int speed);
+status_code_t move(input_t x, input_t y, input_t speed);
 status_code_t get_setpoint(input_t index, input_t profile);
 status_code_t add_setpoint(input_t x_ang, input_t y_ang, input_t speed, input_t profile);
 status_code_t remove_setpoint(input_t index, input_t profile);
@@ -286,6 +287,11 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 }
 
 //* Internal Functions
+ccr_t degtoccr(input_t angle) {
+  // angle -= 90;
+  return (ccr_t)(PULSE_WIDTH_NEG_90 + (((int)angle - ANGLE_MIN) * (PULSE_WIDTH_POS_90 - PULSE_WIDTH_NEG_90) / ANGLE_RANGE));
+}
+
 int strtoint(char* str) {
   int num = 0;
   if (str != NULL) {
@@ -440,22 +446,13 @@ void adxl_read(void) {
 }
 
 //* Instruction Functions
-status_code_t move(float x, float y, int speed) {
+status_code_t move(input_t x, input_t y, input_t speed) {
   next_state_e = RUN_STATE;
-  active_setpoint.x = PULSE_WIDTH_0 + (PULSE_WIDTH_RANGE / (270/x));
-  active_setpoint.y= PULSE_WIDTH_0 + (PULSE_WIDTH_RANGE / (270/y));
+  active_setpoint.x = degtoccr(x);
+  active_setpoint.y= degtoccr(y);
   active_setpoint.speed = speed;
-  
-  // active_setpoint.x = PULSE_WIDTH_POS_90;
-  // active_setpoint.y= PULSE_WIDTH_POS_90;
-  // active_setpoint.speed = 1;
 
-  uint8_t test_msg[UART_TX_BUF_LEN];
-  sprintf((char*)test_msg, "{%d %d %d}\n", active_setpoint.x, active_setpoint.y, active_setpoint.speed);
-  HAL_UART_Transmit(HUART_PTR, test_msg, strlen((char*)test_msg), UART_TX_TIMEOUT);
-  sprintf((char*)test_msg, "{%d}\n", next_state_e);
-  HAL_UART_Transmit(HUART_PTR, test_msg, strlen((char*)test_msg), UART_TX_TIMEOUT);
-
+  // TODO: Take current position and set that as start point
   CCR_X = PULSE_WIDTH_0;
   CCR_Y = PULSE_WIDTH_0;
 
@@ -467,11 +464,15 @@ status_code_t run_setpoint(input_t index, input_t profile) {
   next_state_e = RUN_STATE;
   //run_flag = RUN_SETPOINT_FLAG;
   setpoint_t* setpoint = SETPOINT_ADDRESS(index, profile);
-  active_setpoint.x = setpoint->x;
-  active_setpoint.y = setpoint->y;
+  active_setpoint.x = degtoccr(setpoint->x);
+  active_setpoint.y = degtoccr(setpoint->y);
   active_setpoint.speed = setpoint->speed;
   // //convert speed to Kp value, save to struct
   // pid.Kp = (pid.Kp) * (active_setpoint.speed)/10;
+
+  // TODO: Take current position and set that as start point
+  CCR_X = PULSE_WIDTH_0;
+  CCR_Y = PULSE_WIDTH_0;
 
   return STATUS_OK;
 }
@@ -533,9 +534,9 @@ status_code_t get_setpoint(input_t index, input_t profile) {
 status_code_t add_setpoint(input_t x, input_t y, input_t speed, input_t profile) {
   // Check argument range
   if ((profile < PROFILE_ARG_MIN || profile > PROFILE_ARG_MAX) ||
-      (x < ANGLE_ARG_MIN || x > ANGLE_ARG_MAX) ||
-      (y < ANGLE_ARG_MIN || y > ANGLE_ARG_MAX) ||
-      (speed < SPEED_ARG_MIN || speed > SPEED_ARG_MAX)) {
+      (x < ANGLE_INPUT_MIN || x > ANGLE_INPUT_MAX) ||
+      (y < ANGLE_INPUT_MIN || y > ANGLE_INPUT_MAX) ||
+      (speed < SPEED_MIN || speed > SPEED_MAX)) {
       return STATUS_ERR_INVALID_ARG; // Return error if any argument is out of range
   }
   // Get address and index of last setpoint
@@ -871,7 +872,6 @@ status_code_t test_servos(void) {
     test_adxl();
   // }
 
-  next_state_e = IDLE_STATE;
   return STATUS_OK;
 }
 
@@ -942,10 +942,6 @@ void idle_state_handler(void) {
 
   //* Wait for UART instruction_flag to trigger via interrupt
   if (instruction_flag) {
-    uint8_t test_msg[UART_TX_BUF_LEN];
-    sprintf((char*)test_msg, "{State: %d}\n", next_state_e);
-    HAL_UART_Transmit(HUART_PTR, test_msg, strlen((char*)test_msg), UART_TX_TIMEOUT);
-
     strcpy(uart_rx_buf, uart_circ_buf); // TODO: True circular buffer
 
     if (uart_it_status != STATUS_OK) {
@@ -1053,16 +1049,16 @@ void idle_state_handler(void) {
 }
 
 system_state_t run_state_handler(void) {
-  int step_speed = 500/active_setpoint.speed; 
-
+  int step_speed = 500/active_setpoint.speed;
+  uint8_t direction = ((int)active_setpoint.x - PULSE_WIDTH_0) ? 1U : 0U;
   HAL_Delay(50);
-  if (CCR_X >= active_setpoint.x && CCR_Y >= active_setpoint.y) {
+
+  if (((direction == 1) && (CCR_X >= active_setpoint.x) && CCR_Y >= (active_setpoint.y)) ||
+      ((direction == 0) && (CCR_X <= active_setpoint.x) && CCR_Y <= (active_setpoint.y))) {
     return IDLE_STATE;
-  } else if (CCR_X < active_setpoint.x) {
-    CCR_X = CCR_X + (active_setpoint.x/step_speed);
-  } else if (CCR_Y < active_setpoint.y) {
-    CCR_Y = CCR_Y + (active_setpoint.y/step_speed);
   }
+  CCR_X = direction ? CCR_X + (active_setpoint.x/step_speed) : CCR_X - (active_setpoint.x/step_speed);
+  CCR_Y = direction ? CCR_Y + (active_setpoint.y/step_speed) : CCR_Y - (active_setpoint.y/step_speed);
 
   return RUN_STATE;
 }

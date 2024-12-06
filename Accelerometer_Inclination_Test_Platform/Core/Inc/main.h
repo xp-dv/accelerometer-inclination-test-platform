@@ -110,10 +110,7 @@ void Error_Handler(void);
 #define PROFILE_ARG_MAX 9U
 #define INDEX_ARG_MIN 0U
 #define INDEX_ARG_MAX 999U
-#define ANGLE_ARG_MIN 0U
-#define ANGLE_ARG_MAX 90U
-#define SPEED_ARG_MIN 1U
-#define SPEED_ARG_MAX 10U
+
 // Flash Memory
 #define FLASH_SECTOR_NUMBER FLASH_SECTOR_6
 #define FLASH_SECTOR_6_BASE 0x08040000UL
@@ -141,6 +138,13 @@ void Error_Handler(void);
 // Servos
 #define CCR_X htim2.Instance->CCR1
 #define CCR_Y htim2.Instance->CCR2
+#define ANGLE_MIN 0
+#define ANGLE_MAX 180
+#define ANGLE_INPUT_MIN 0
+#define ANGLE_INPUT_MAX 180
+#define ANGLE_RANGE (ANGLE_MAX - ANGLE_MIN)
+#define SPEED_MIN 1U
+#define SPEED_MAX 10U
 
 #define PULSE_WIDTH_RANGE (PULSE_WIDTH_MAX - PULSE_WIDTH_MIN)
 #define PULSE_WIDTH_MIN 500 // us
