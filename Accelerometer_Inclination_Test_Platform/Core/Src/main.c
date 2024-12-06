@@ -442,13 +442,13 @@ void adxl_read(void) {
 //* Instruction Functions
 status_code_t move(float x, float y, int speed) {
   next_state_e = RUN_STATE;
-  //active_setpoint.x = PULSE_WIDTH_0 + (PULSE_WIDTH_RANGE / (270/pid_x));
-  //active_setpoint.y= PULSE_WIDTH_0 + (PULSE_WIDTH_RANGE / (270/pid_y));
-  //active_setpoint.speed = speed;
+  active_setpoint.x = PULSE_WIDTH_0 + (PULSE_WIDTH_RANGE / (270/x));
+  active_setpoint.y= PULSE_WIDTH_0 + (PULSE_WIDTH_RANGE / (270/y));
+  active_setpoint.speed = speed;
   
-  active_setpoint.x = PULSE_WIDTH_POS_90;
-  active_setpoint.y= PULSE_WIDTH_POS_90;
-  active_setpoint.speed = 1;
+  // active_setpoint.x = PULSE_WIDTH_POS_90;
+  // active_setpoint.y= PULSE_WIDTH_POS_90;
+  // active_setpoint.speed = 1;
 
   uint8_t test_msg[UART_TX_BUF_LEN];
   sprintf((char*)test_msg, "{%d %d %d}\n", active_setpoint.x, active_setpoint.y, active_setpoint.speed);
@@ -470,8 +470,8 @@ status_code_t run_setpoint(input_t index, input_t profile) {
   active_setpoint.x = setpoint->x;
   active_setpoint.y = setpoint->y;
   active_setpoint.speed = setpoint->speed;
-  //convert speed to Kp value, save to struct
-  pid.Kp = (pid.Kp) * (active_setpoint.speed)/10;
+  // //convert speed to Kp value, save to struct
+  // pid.Kp = (pid.Kp) * (active_setpoint.speed)/10;
 
   return STATUS_OK;
 }
@@ -620,14 +620,14 @@ status_code_t remove_setpoint(input_t index, input_t profile) {
 
 status_code_t get_profile(input_t profile) {
   // Check argument range
-     if (profile < PROFILE_ARG_MIN || profile > PROFILE_ARG_MAX) {
-        return  STATUS_ERR_ARG_OUT_OF_RANGE; // Return an error code for invalid profile
-    }
-   
+  if (profile < PROFILE_ARG_MIN || profile > PROFILE_ARG_MAX) {
+    return  STATUS_ERR_ARG_OUT_OF_RANGE; // Return an error code for invalid profile
+  }
+
   // Get setpoint pointer from index and profile arguments
   setpoint_t* setpoint = PROFILE_ADDRESS(profile);
 
-// Check if requested profile contains data
+  // Check if requested profile contains data
   if (PROFILE_ADDRESS(profile)->x == FLASH_EMPTY && PROFILE_ADDRESS(profile)->y == FLASH_EMPTY && PROFILE_ADDRESS(profile)->speed == FLASH_EMPTY){
     return STATUS_ERR_EMPTY_PROFILE;
   }
@@ -1053,9 +1053,9 @@ void idle_state_handler(void) {
 }
 
 system_state_t run_state_handler(void) {
-  int step_speed = 100/active_setpoint.speed; 
+  int step_speed = 500/active_setpoint.speed; 
 
-  HAL_Delay(100);
+  HAL_Delay(50);
   if (CCR_X >= active_setpoint.x && CCR_Y >= active_setpoint.y) {
     return IDLE_STATE;
   } else if (CCR_X < active_setpoint.x) {
