@@ -52,8 +52,6 @@ typedef enum {
   // Instruction code 0 = RESERVED
   // Motion Commands
   MOVE_INSTRUCTION = 1,
-  RUN_SETPOINT_INSTRUCTION,
-  RUN_PROFILE_INSTRUCTION,
   STOP_INSTRUCTION,
   // Setpoint Commands
   GET_SETPOINT_INSTRUCTION,
@@ -62,6 +60,8 @@ typedef enum {
   // Profile Commands
   GET_PROFILE_INSTRUCTION,
   CLEAR_PROFILE_INSTRUCTION,
+  RUN_PROFILE_INSTRUCTION,
+  RUN_SETPOINT_INSTRUCTION,
   // Test Commands
   TEST_SERVOS_INSTRUCTION = 995U,
   TEST_ADXL_INSTRUCTION,
@@ -1050,7 +1050,7 @@ void idle_state_handler(void) {
 
 system_state_t run_state_handler(void) {
   int step_speed = 500/active_setpoint.speed;
-  uint8_t direction = ((int)active_setpoint.x - PULSE_WIDTH_0) ? 1U : 0U;
+  uint8_t direction = ((int)active_setpoint.x > PULSE_WIDTH_0) ? 1U : 0U;
   HAL_Delay(50);
 
   if (((direction == 1) && (CCR_X >= active_setpoint.x) && CCR_Y >= (active_setpoint.y)) ||
