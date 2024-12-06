@@ -43,8 +43,9 @@ typedef uint16_t input_t; // Typedef set to fit numbers of size INPUT_T_MAX
 
 typedef enum {
   STARTUP_STATE,
-  INSTRUCTION_WAIT_STATE,
+  IDLE_STATE,
   RUN_STATE,
+
 } system_state_t;
 
 typedef enum {
@@ -62,7 +63,8 @@ typedef enum {
   RUN_PROFILE_INSTRUCTION,
   RUN_SETPOINT_INSTRUCTION,
   // Test Commands
-  TEST_SERVOS_INSTRUCTION = 996U,
+  TEST_SERVOS_INSTRUCTION = 995U,
+  TEST_ADXL_INSTRUCTION,
   TEST_FLASH_INSTRUCTION,
   TEST_LED_INSTRUCTION,
   TEST_ECHO_INSTRUCTION,
@@ -129,7 +131,7 @@ UART_HandleTypeDef huart2;
 //* Accelerometer Read
 uint8_t adxl_rx_buf[ADXL_DATA_SIZE]; // The 6 bytes of ADXL data are stored here
 float x_g, y_g, z_g;
-float x_ang, y_ang, z_ang;
+float adxl_x_ang, adxl_y_ang, z_ang;
 
 //* Servo Motor Control
 float pos_x;
@@ -142,6 +144,9 @@ char uart_rx_char[2]; // Stores Rx char and string terminator
 char uart_circ_buf[UART_RX_BUF_LEN]; // Circular Rx Buffer
 uint8_t instruction_flag = 0;
 status_code_t uart_it_status = STATUS_OK;
+
+//* Startup State
+system_state_t next_state_e = STARTUP_STATE;
 
 /* USER CODE END PV */
 
@@ -175,7 +180,15 @@ status_code_t clear_profile(input_t profile);
 status_code_t run_profile(input_t profile);
 status_code_t run_setpoint(input_t index, input_t profile);
 status_code_t test_servos(void);
+status_code_t test_adxl(void);
 status_code_t test_flash(void);
+
+//* Event Handler Prototypes
+system_state_t startup_state_handler(void);
+system_state_t idle_state_handler(void);
+system_state_t run_state_handler(void);
+system_state_t move_handler(void);
+system_state_t run_setpoint_handler(void);
 
 /* USER CODE END PFP */
 
@@ -201,6 +214,9 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
       uart_it_status = STATUS_ERR_UART_OF; // Buffer Overflow
     }
   }
+
+  next_state_e = idle_state_handler();
+
   // UART Interrupt Rx Reactivate
   HAL_UART_Receive_IT(huart, (uint8_t *)uart_rx_char, 1U); // Receive single char
 }
@@ -350,12 +366,12 @@ void adxl_read(void) {
   y_g = y_raw * ADXL_SCALE_FACTOR;
   z_g = z_raw * ADXL_SCALE_FACTOR;
 
-  x_ang = atan2f(-y_g, sqrtf(x_g * x_g + z_g * z_g));
-  y_ang = atan2f(-x_g, sqrtf(y_g * y_g + z_g * z_g));
+  adxl_x_ang = atan2f(-y_g, sqrtf(x_g * x_g + z_g * z_g));
+  adxl_y_ang = atan2f(-x_g, sqrtf(y_g * y_g + z_g * z_g));
   // z_ang = atan2f(sqrtf(x_g * x_g + y_g * y_g), z_g);
 
-  x_ang = x_ang * (180.0f / M_PI);
-  y_ang = y_ang * (180.0f / M_PI);
+  adxl_x_ang = adxl_x_ang * (180.0f / M_PI);
+  adxl_y_ang = adxl_y_ang * (180.0f / M_PI);
   // z_ang = z_ang * (180.0f / M_PI);
 }
 
@@ -406,13 +422,13 @@ status_code_t get_setpoint(input_t index, input_t profile) {
   return STATUS_OK;
 }
 
-status_code_t add_setpoint(input_t x_ang, input_t y_ang, input_t speed, input_t profile) {
+status_code_t add_setpoint(input_t x, input_t y, input_t speed, input_t profile) {
   //check arguments for valid values
     if ((profile < PROFILE_ARG_MIN || profile > PROFILE_ARG_MAX) ||
-        (x_ang < ANGLE_ARG_MIN || x_ang > ANGLE_ARG_MAX) ||
-        (y_ang < ANGLE_ARG_MIN || y_ang > ANGLE_ARG_MAX) ||
+        (x < ANGLE_ARG_MIN || x > ANGLE_ARG_MAX) ||
+        (y < ANGLE_ARG_MIN || y > ANGLE_ARG_MAX) ||
         (speed < SPEED_ARG_MIN || speed > SPEED_ARG_MAX)) {
-        return STATUS_ERR_ARG_OUT_OF_RANGE;                       // Return error if any argument is out of range
+        return STATUS_ERR_INVALID_ARG; // Return error if any argument is out of range
     }
   // Get address and index of last setpoint
   setpoint_t* setpoint = PROFILE_ADDRESS(profile);
@@ -432,8 +448,8 @@ status_code_t add_setpoint(input_t x_ang, input_t y_ang, input_t speed, input_t 
   HAL_FLASH_Unlock();
 
   // Write the array to flash memory
-  if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(setpoint->x)), x_ang) != HAL_OK ||
-      HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(setpoint->y)), y_ang) != HAL_OK ||
+  if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(setpoint->x)), x) != HAL_OK ||
+      HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(setpoint->y)), y) != HAL_OK ||
       HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (uint32_t)(&(setpoint->speed)), speed) != HAL_OK) {
     HAL_FLASH_Lock();
     return STATUS_ERR_FLASH_WRITE_FAILED;
@@ -507,7 +523,7 @@ status_code_t get_profile(input_t profile) {
   if (PROFILE_ADDRESS(profile)->x == FLASH_EMPTY && PROFILE_ADDRESS(profile)->y == FLASH_EMPTY && PROFILE_ADDRESS(profile)->speed == FLASH_EMPTY){
     return STATUS_ERR_EMPTY_PROFILE;
   }
-
+  
   input_t index = 0;
   char uart_tx_buf[UART_TX_BUF_LEN];
   // Transmit start indicator and first setpoint index
@@ -545,12 +561,16 @@ status_code_t get_profile(input_t profile) {
 
 status_code_t clear_profile(input_t profile) {
   //check arguments for valid values
-   if (profile < PROFILE_ARG_MIN || profile > PROFILE_ARG_MAX) {
-        return  STATUS_ERR_ARG_OUT_OF_RANGE; // Return an error code for invalid profile
-    }
+  if (profile < PROFILE_ARG_MIN || profile > PROFILE_ARG_MAX) {
+    return  STATUS_ERR_ARG_OUT_OF_RANGE; // Return an error code for invalid profile
+  }
   // Get setpoint pointer from profile argument
   setpoint_t* flash_setpoints = PROFILE_ADDRESS(0U);
 
+  // Check if requested profile contains data
+  if (PROFILE_ADDRESS(profile)->x == FLASH_EMPTY && PROFILE_ADDRESS(profile)->y == FLASH_EMPTY && PROFILE_ADDRESS(profile)->speed == FLASH_EMPTY){
+    return STATUS_ERR_EMPTY_PROFILE;
+  }
 
   // Copy the setpoints from all the kept profiles to RAM
   setpoint_t kept_setpoints[TOTAL_SETPOINTS];
@@ -607,123 +627,162 @@ status_code_t test_servos(void) {
   char test_buf[UART_TX_BUF_LEN];
 
   // Center Platform
-  sprintf(test_buf, "Testing 0° for X and Y axes:\r\n");
-  HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
-  adxl_read();
-  CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0°
-  CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0°
-  HAL_Delay(SERVO_TEST_DELAY);
+  // if (next_state_e == RUN_STATE) {
+    CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0°
+    CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0°
+    HAL_Delay(SERVO_TEST_DELAY);
+    sprintf(test_buf, "Testing 0° for X and Y axes:\r\n");
+    HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+    test_adxl();
+  // }
   
   // Move X-Axis
-  CCR_X = PULSE_WIDTH_NEG_90 + PULSE_WIDTH_OFFSET_X; // -90° or 45° (From PULSE_WIDTH_MIN)
-  CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
-  HAL_Delay(SERVO_TEST_DELAY);
-  
-  sprintf(test_buf, "Testing -90° for X, 0° for Y axis:\r\n");
-  HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
-  adxl_read();
-  CCR_X = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_X; // -45° or 90° (From PULSE_WIDTH_MIN)
-  CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
-  HAL_Delay(SERVO_TEST_DELAY);
-  
-  sprintf(test_buf, "Testing -45° for X, 0° for Y axis:\r\n");
-  HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
-  adxl_read();
-  CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
-  CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
-  HAL_Delay(SERVO_TEST_DELAY);
-  
-  sprintf(test_buf, "Testing 0° for X and Y axes:\r\n");
-  HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
-  adxl_read();
-  CCR_X = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_X; // +45° or 180° (From PULSE_WIDTH_MIN)
-  CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
-  HAL_Delay(SERVO_TEST_DELAY);
-  
-  sprintf(test_buf, "Testing +45° for X, 0° for Y axis:\r\n");
-  HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
-  adxl_read();
-  CCR_X = PULSE_WIDTH_POS_90 + PULSE_WIDTH_OFFSET_X; // +90° or 225° (From PULSE_WIDTH_MIN)
-  CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
-  HAL_Delay(SERVO_TEST_DELAY);
-  
-  sprintf(test_buf, "Testing +90° for X, 0° for Y axis:\r\n");
-  HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
-  adxl_read();
+  // if (next_state_e == RUN_STATE) {
+    CCR_X = PULSE_WIDTH_NEG_90 + PULSE_WIDTH_OFFSET_X; // -90° or 45° (From PULSE_WIDTH_MIN)
+    CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
+    HAL_Delay(SERVO_TEST_DELAY);
+    sprintf(test_buf, "Testing -90° for X, 0° for Y axis:\r\n");
+    HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+    test_adxl();
+  // }
+
+  // if (next_state_e == RUN_STATE) {
+    CCR_X = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_X; // -45° or 90° (From PULSE_WIDTH_MIN)
+    CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
+    HAL_Delay(SERVO_TEST_DELAY);
+    sprintf(test_buf, "Testing -45° for X, 0° for Y axis:\r\n");
+    HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+    test_adxl();
+  // }
+
+  // if (next_state_e == RUN_STATE) {
+    CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
+    CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
+    HAL_Delay(SERVO_TEST_DELAY);
+    sprintf(test_buf, "Testing 0° for X and Y axes:\r\n");
+    HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+    test_adxl();
+  // }
+
+  // if (next_state_e == RUN_STATE) {
+    CCR_X = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_X; // +45° or 180° (From PULSE_WIDTH_MIN)
+    CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
+    HAL_Delay(SERVO_TEST_DELAY);
+    sprintf(test_buf, "Testing +45° for X, 0° for Y axis:\r\n");
+    HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+    test_adxl();
+  // }
+
+  // if (next_state_e == RUN_STATE) {
+    CCR_X = PULSE_WIDTH_POS_90 + PULSE_WIDTH_OFFSET_X; // +90° or 225° (From PULSE_WIDTH_MIN)
+    CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
+    HAL_Delay(SERVO_TEST_DELAY);
+    sprintf(test_buf, "Testing +90° for X, 0° for Y axis:\r\n");
+    HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+    test_adxl();
+  // }
 
   // Move Y-Axis
-  CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
-  CCR_Y = PULSE_WIDTH_NEG_90 + PULSE_WIDTH_OFFSET_Y; // -90° or 45° (From PULSE_WIDTH_MIN)
-  HAL_Delay(SERVO_TEST_DELAY);
-  
-  sprintf(test_buf, "Testing 0° for X, -90° for Y axis:\r\n");
-  HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
-  adxl_read();
-  CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
-  CCR_Y = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_Y; // -45° or 90° (From PULSE_WIDTH_MIN)
-  HAL_Delay(SERVO_TEST_DELAY);
-  
-  sprintf(test_buf, "Testing 0° for X, -45° for Y axis:\r\n");
-  HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
-  adxl_read();
-  CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
-  CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
-  HAL_Delay(SERVO_TEST_DELAY);
-  
-  sprintf(test_buf, "Testing 0° for X and Y axes:\r\n");
-  HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
-  adxl_read();
-  CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
-  CCR_Y = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_Y; // +45° or 180° (From PULSE_WIDTH_MIN)
-  HAL_Delay(SERVO_TEST_DELAY);
-  
-  sprintf(test_buf, "Testing 0° for X, +45° for Y axis:\r\n");
-  HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
-  adxl_read();
-  CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
-  CCR_Y = PULSE_WIDTH_POS_90 + PULSE_WIDTH_OFFSET_Y; // +90° or 225° (From PULSE_WIDTH_MIN)
-  HAL_Delay(SERVO_TEST_DELAY);
-  
-  sprintf(test_buf, "Testing 0° for X, +90° for Y axis:\r\n");
-  HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
-  adxl_read();
+  // if (next_state_e == RUN_STATE) {
+    CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
+    CCR_Y = PULSE_WIDTH_NEG_90 + PULSE_WIDTH_OFFSET_Y; // -90° or 45° (From PULSE_WIDTH_MIN)
+    HAL_Delay(SERVO_TEST_DELAY);
+    sprintf(test_buf, "Testing 0° for X, -90° for Y axis:\r\n");
+    HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+    test_adxl();
+  // }
+
+  // if (next_state_e == RUN_STATE) {
+    CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
+    CCR_Y = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_Y; // -45° or 90° (From PULSE_WIDTH_MIN)
+    HAL_Delay(SERVO_TEST_DELAY);
+    sprintf(test_buf, "Testing 0° for X, -45° for Y axis:\r\n");
+    HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+    test_adxl();
+  // }
+
+  // if (next_state_e == RUN_STATE) {
+    CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
+    CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0° or 135°
+    HAL_Delay(SERVO_TEST_DELAY);
+    sprintf(test_buf, "Testing 0° for X and Y axes:\r\n");
+    HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+    test_adxl();
+  // }
+
+  // if (next_state_e == RUN_STATE) {
+    CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
+    CCR_Y = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_Y; // +45° or 180° (From PULSE_WIDTH_MIN)
+    HAL_Delay(SERVO_TEST_DELAY);
+    sprintf(test_buf, "Testing 0° for X, +45° for Y axis:\r\n");
+    HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+    test_adxl();
+  // }
+
+  // if (next_state_e == RUN_STATE) {
+    CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0° or 135°
+    CCR_Y = PULSE_WIDTH_POS_90 + PULSE_WIDTH_OFFSET_Y; // +90° or 225° (From PULSE_WIDTH_MIN)
+    HAL_Delay(SERVO_TEST_DELAY);
+    sprintf(test_buf, "Testing 0° for X, +90° for Y axis:\r\n");
+    HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+    test_adxl();
+  // }
 
   // Move Both Axes
-  CCR_X = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_X; // -45°
-  CCR_Y = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_Y; // -45°
-  HAL_Delay(SERVO_TEST_DELAY);
-  
-  sprintf(test_buf, "Testing -45° for X and Y axes:\r\n");
-  HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+  // if (next_state_e == RUN_STATE) {
+    CCR_X = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_X; // -45°
+    CCR_Y = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_Y; // -45°
+    HAL_Delay(SERVO_TEST_DELAY);
+    sprintf(test_buf, "Testing -45° for X and Y axes:\r\n");
+    HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+    test_adxl();
+  // }
+
+  // if (next_state_e == RUN_STATE) {
+    CCR_X = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_X; // +45°
+    CCR_Y = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_Y; // +45°
+    HAL_Delay(SERVO_TEST_DELAY);
+    sprintf(test_buf, "Testing +45° for X and Y axes:\r\n");
+    HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+    test_adxl();
+  // }
+
+  // if (next_state_e == RUN_STATE) {
+    CCR_X = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_X; // +45°
+    CCR_Y = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_Y; // -45°
+    HAL_Delay(SERVO_TEST_DELAY);
+    sprintf(test_buf, "Testing +45° for X, -45° for Y axis:\r\n");
+    HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+    test_adxl();
+  // }
+
+  // if (next_state_e == RUN_STATE) {
+    CCR_X = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_X; // -45°
+    CCR_Y = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_Y; // +45°
+    HAL_Delay(SERVO_TEST_DELAY);
+    sprintf(test_buf, "Testing -45° for X, +45° for Y axis:\r\n");
+    HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+    test_adxl();
+  // }
+
+  // if (next_state_e == RUN_STATE) {
+    CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0°
+    CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0°
+    HAL_Delay(SERVO_TEST_DELAY);
+    sprintf(test_buf, "Testing 0° for X and Y axes:\r\n");
+    HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+    test_adxl();
+  // }
+
+  next_state_e = IDLE_STATE;
+  return STATUS_OK;
+}
+
+status_code_t test_adxl(void) {
   adxl_read();
-  CCR_X = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_X; // +45°
-  CCR_Y = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_Y; // +45°
-  HAL_Delay(SERVO_TEST_DELAY);
-  
-  sprintf(test_buf, "Testing +45° for X and Y axes:\r\n");
-  HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
-  adxl_read();
-  CCR_X = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_X; // +45°
-  CCR_Y = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_Y; // -45°
-  HAL_Delay(SERVO_TEST_DELAY);
-  
-  sprintf(test_buf, "Testing +45° for X, -45° for Y axis:\r\n");
-  HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
-  adxl_read();
-  CCR_X = PULSE_WIDTH_NEG_45 + PULSE_WIDTH_OFFSET_X; // -45°
-  CCR_Y = PULSE_WIDTH_POS_45 + PULSE_WIDTH_OFFSET_Y; // +45°
-  HAL_Delay(SERVO_TEST_DELAY);
-  
-  sprintf(test_buf, "Testing -45° for X, +45° for Y axis:\r\n");
-  HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
-  adxl_read();
-  CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // 0°
-  CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // 0°
-  HAL_Delay(SERVO_TEST_DELAY);
-  
-  sprintf(test_buf, "Testing 0° for X and Y axes:\r\n");
-  HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
-  adxl_read();
+  uint8_t test_msg[UART_TX_BUF_LEN];
+  sprintf((char*)test_msg, "{%03f %03f}\n", adxl_x_ang, adxl_y_ang);
+  HAL_UART_Transmit(HUART_PTR, test_msg, strlen((char*)test_msg), UART_TX_TIMEOUT);
 
   return STATUS_OK;
 }
@@ -734,7 +793,6 @@ status_code_t test_flash(void) {
     status = clear_profile(profile);
     if (status != STATUS_OK) {
       return status;
-
     }
 
     uint16_t arg1 = profile ; // Set the first argument as the profile index + 1
@@ -765,6 +823,9 @@ system_state_t startup_state_handler(void) {
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
 
+  //* Servo Interrupt Start
+  HAL_TIM_Base_Start_IT(&htim4);
+
   //* Accelerometer
   adxl_init();
 
@@ -775,10 +836,10 @@ system_state_t startup_state_handler(void) {
   uint8_t startup_msg[] = "[00]{0}\n"; // STATUS_OK / Device is ready
   HAL_UART_Transmit(HUART_PTR, startup_msg, strlen((char*)startup_msg), UART_TX_TIMEOUT);
 
-  return INSTRUCTION_WAIT_STATE;
+  return IDLE_STATE;
 }
 
-system_state_t instruction_wait_state_handler(void) {
+system_state_t idle_state_handler(void) {
   static char uart_tx_buf[UART_TX_BUF_LEN];
   static char uart_rx_buf[UART_RX_BUF_LEN];
 
@@ -854,7 +915,12 @@ system_state_t instruction_wait_state_handler(void) {
           uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
           break;
         case TEST_SERVOS_INSTRUCTION:
+          // next_state_e = RUN_STATE;
           instruction.status = test_servos();
+          uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
+          break;
+        case TEST_ADXL_INSTRUCTION:
+          instruction.status = test_adxl();
           uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
           break;
         case TEST_FLASH_INSTRUCTION:
@@ -882,14 +948,14 @@ system_state_t instruction_wait_state_handler(void) {
     memset(uart_tx_buf, 0, sizeof(uart_tx_buf));
     instruction_flag = 0;
   }
-  return INSTRUCTION_WAIT_STATE;
+  return IDLE_STATE;
 }
 
 system_state_t run_state_handler(void) {
   // Listen for stop commands
   // Run test setpoint
   // Calls move servo function
-  return INSTRUCTION_WAIT_STATE;
+  return IDLE_STATE;
 }
 
 /* USER CODE END 0 */
@@ -930,9 +996,12 @@ int main(void)
   MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
 
-  //* Startup State
-  system_state_t next_state_e = STARTUP_STATE;
-
+  //begin timer interrupt
+  if (HAL_TIM_Base_Start_IT(&htim4) != HAL_OK)
+  {
+    /* Starting Error */
+    Error_Handler();
+  }
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -948,11 +1017,10 @@ int main(void)
       case STARTUP_STATE:
         next_state_e = startup_state_handler();
         break;
-      case INSTRUCTION_WAIT_STATE:
-        next_state_e = instruction_wait_state_handler();
+      case IDLE_STATE:
         break;
       case RUN_STATE:
-        next_state_e = run_state_handler();
+          
         break;
       default:
         next_state_e = startup_state_handler();
