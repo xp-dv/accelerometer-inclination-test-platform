@@ -249,7 +249,7 @@ status_code_t test_flash(void);
 
 //* Event Handler Prototypes
 system_state_t startup_state_handler(void);
-system_state_t idle_state_handler(void);
+void idle_state_handler(void);
 system_state_t run_state_handler(void);
 system_state_t move_handler(void);
 system_state_t run_setpoint_handler(void);
@@ -279,7 +279,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
     }
   }
 
-  next_state_e = idle_state_handler();
+  idle_state_handler();
 
   // UART Interrupt Rx Reactivate
   HAL_UART_Receive_IT(huart, (uint8_t *)uart_rx_char, 1U); // Receive single char
@@ -442,7 +442,6 @@ void adxl_read(void) {
 //* Instruction Functions
 status_code_t move(float x, float y, int speed) {
   next_state_e = RUN_STATE;
-
   //active_setpoint.x = PULSE_WIDTH_0 + (PULSE_WIDTH_RANGE / (270/pid_x));
   //active_setpoint.y= PULSE_WIDTH_0 + (PULSE_WIDTH_RANGE / (270/pid_y));
   //active_setpoint.speed = speed;
@@ -937,12 +936,16 @@ system_state_t startup_state_handler(void) {
   return IDLE_STATE;
 }
 
-system_state_t idle_state_handler(void) {
+void idle_state_handler(void) {
   static char uart_tx_buf[UART_TX_BUF_LEN];
   static char uart_rx_buf[UART_RX_BUF_LEN];
 
   //* Wait for UART instruction_flag to trigger via interrupt
   if (instruction_flag) {
+    uint8_t test_msg[UART_TX_BUF_LEN];
+    sprintf((char*)test_msg, "{State: %d}\n", next_state_e);
+    HAL_UART_Transmit(HUART_PTR, test_msg, strlen((char*)test_msg), UART_TX_TIMEOUT);
+
     strcpy(uart_rx_buf, uart_circ_buf); // TODO: True circular buffer
 
     if (uart_it_status != STATUS_OK) {
@@ -978,6 +981,7 @@ system_state_t idle_state_handler(void) {
           uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
           break;
         case STOP_INSTRUCTION:
+          next_state_e = IDLE_STATE;
           // TODO: Implement stop interrupt that can immediately stop the pwm signal and cut power.
           // TODO: Maybe use a simple transistor and GPIO pin?
           instruction.status = stop();
@@ -1046,22 +1050,20 @@ system_state_t idle_state_handler(void) {
     memset(uart_tx_buf, 0, sizeof(uart_tx_buf));
     instruction_flag = 0;
   }
-  return IDLE_STATE;
 }
 
 system_state_t run_state_handler(void) {
-  if (next_state_e != RUN_STATE) {
-    return IDLE_STATE;
-  }
   int step_speed = 100/active_setpoint.speed; 
 
-  CCR_X = CCR_X + (active_setpoint.x/step_speed);
-  CCR_Y = CCR_Y + (active_setpoint.y/step_speed);
- 
   HAL_Delay(100);
-  if (CCR_X == active_setpoint.x && CCR_Y == active_setpoint.y) {
+  if (CCR_X >= active_setpoint.x && CCR_Y >= active_setpoint.y) {
     return IDLE_STATE;
+  } else if (CCR_X < active_setpoint.x) {
+    CCR_X = CCR_X + (active_setpoint.x/step_speed);
+  } else if (CCR_Y < active_setpoint.y) {
+    CCR_Y = CCR_Y + (active_setpoint.y/step_speed);
   }
+
   return RUN_STATE;
 }
 
