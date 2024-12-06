@@ -595,6 +595,21 @@ status_code_t run_setpoint(input_t index, input_t profile) {
   return STATUS_OK;
 }
 
+status_code_t stop()
+{
+  //stop pwm signals to stop platforms/servos
+  HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1);
+  HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_2);
+
+  //return platform to idle position
+  CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X; // Center X-axis
+  CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y; // Center Y-axis
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
+
+  return STATUS_OK;
+}
+
 status_code_t test_servos(void) {
   // TODO: Change test printout to {X Y} format
   char test_buf[UART_TX_BUF_LEN];
@@ -814,6 +829,7 @@ system_state_t instruction_wait_state_handler(void) {
         case STOP_INSTRUCTION:
           // TODO: Implement stop interrupt that can immediately stop the pwm signal and cut power.
           // TODO: Maybe use a simple transistor and GPIO pin?
+          instruction.status = stop();
           uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
           break;
         case GET_SETPOINT_INSTRUCTION:
