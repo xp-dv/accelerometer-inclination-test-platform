@@ -192,7 +192,6 @@ float pos_x;
 float pos_y;
 float pos_x_last;
 float pos_y_last;
-int profile_index;
 
 //* UART
 char uart_rx_char[2]; // Stores Rx char and string terminator
@@ -462,40 +461,45 @@ void adxl_read(void) {
 
 //* Instruction Functions
 status_code_t move(input_t x, input_t y, input_t speed) {
-  next_state_e = RUN_SETPOINT_STATE;
+  // Check argument range
+  if ((x < ANGLE_INPUT_MIN || x > ANGLE_INPUT_MAX) ||
+      (y < ANGLE_INPUT_MIN || y > ANGLE_INPUT_MAX) ||
+      (speed < SPEED_MIN || speed > SPEED_MAX)) {
+      return STATUS_ERR_ARG_OUT_OF_RANGE; // Return error if any argument is out of range
+  }
+
+ 
   active_setpoint.x = degtoccr(x);
   active_setpoint.y= degtoccr(y);
   active_setpoint.speed = speed;
-
+  
   // TODO: Take current position and set that as start point
   CCR_X = previous_setpoint.x;
   CCR_Y = previous_setpoint.y;
-
+  next_state_e = RUN_SETPOINT_STATE;
   return STATUS_OK;
 }
 
 status_code_t run_setpoint(input_t index, input_t profile) {
   // TODO: Allows the user to recall a setpoint out of a specific profile instead of remembering/storing it for move().
-  next_state_e = RUN_SETPOINT_STATE;
-  //run_flag = RUN_SETPOINT_FLAG;
   setpoint_t* setpoint = SETPOINT_ADDRESS(index, profile);
   active_setpoint.x = degtoccr(setpoint->x);
   active_setpoint.y = degtoccr(setpoint->y);
   active_setpoint.speed = setpoint->speed;
-  // //convert speed to Kp value, save to struct
-  // pid.Kp = (pid.Kp) * (active_setpoint.speed)/10;
-
+  
   // TODO: Take current position and set that as start point
-  CCR_X = previous_setpoint.x;
-  CCR_Y = previous_setpoint.y;
+  // CCR_X = previous_setpoint.x;
+  // CCR_Y = previous_setpoint.y;
 
+  next_state_e = RUN_SETPOINT_STATE;
   return STATUS_OK;
 }
 
 status_code_t run_profile(input_t profile) {
-  next_state_e = RUN_PROFILE_STATE;
-  profile_index = 0;
   active_setpoint.profile = profile;
+  CCR_X = previous_setpoint.x;
+  CCR_Y = previous_setpoint.y;
+  next_state_e = RUN_PROFILE_STATE;
   return STATUS_OK;
 }
 
@@ -512,8 +516,6 @@ status_code_t stop(void) {
   // Stop pwm signals to stop platforms/servos
   HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1);
   HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_2);
-  previous_setpoint.x = CCR_X;
-  previous_setpoint.y = CCR_Y;
 
   return STATUS_OK;
 }
@@ -1031,7 +1033,6 @@ void idle_state_handler(void) {
           uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
           break;
         case TEST_SERVOS_INSTRUCTION:
-          // next_state_e = RUN_STATE;
           instruction.status = test_servos();
           uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
           break;
@@ -1071,7 +1072,7 @@ system_state_t run_setpoint_state_handler(void) {
     return IDLE_STATE;
   }
 
-  uint16_t step = (PULSE_WIDTH_POS_90 - PULSE_WIDTH_NEG_90) * ((SPEED_MAX + 1) - active_setpoint.speed) * STEP_DELAY/1000;
+  uint16_t step = (STEP_DELAY/1000) * (PULSE_WIDTH_POS_90 - PULSE_WIDTH_NEG_90) / (SPEED_MAX + 1U - active_setpoint.speed);
 
   // Increment or decrement CCR_X towards active_setpoint.x
   if (CCR_X < active_setpoint.x) {
@@ -1104,30 +1105,70 @@ system_state_t run_setpoint_state_handler(void) {
 }
 
 system_state_t run_profile_state_handler(void) {
-  if (profile_index == PROFILE_LEN) {
+  static int setpoint_index = 0;
+  // Get setpoint pointer from index and profile arguments
+  setpoint_t* setpoint = SETPOINT_ADDRESS(setpoint_index, active_setpoint.profile);
+
+  // Check if requested setpoint contains data
+  if (setpoint->x == FLASH_EMPTY && setpoint->y == FLASH_EMPTY && setpoint->speed == FLASH_EMPTY) {
+    setpoint_index = 0;
     return IDLE_STATE;
   }
-  setpoint_t* setpoint = SETPOINT_ADDRESS(profile_index, active_setpoint.profile);
+  
   active_setpoint.x = degtoccr(setpoint->x);
   active_setpoint.y = degtoccr(setpoint->y);
   active_setpoint.speed = setpoint->speed;
-  //convert speed to Kp value, save to struct
-  //pid.Kp = (pid.Kp) * (active_setpoint.speed)/10;
-  if (active_setpoint.x == FLASH_EMPTY && active_setpoint.y == FLASH_EMPTY && active_setpoint.speed == FLASH_EMPTY) {
-    // echo status OK
-    next_state_e = IDLE_STATE;
-  }
-  int step_speed = 500/active_setpoint.speed;
-  uint8_t direction = ((int)active_setpoint.x - PULSE_WIDTH_0) ? 1U : 0U;
-  HAL_Delay(50);
-  if (((direction == 1) && (CCR_X >= active_setpoint.x) && CCR_Y >= (active_setpoint.y)) ||
-    ((direction == 0) && (CCR_X <= active_setpoint.x) && CCR_Y <= (active_setpoint.y))) {
-    ++profile_index;
-    return RUN_PROFILE_STATE;
-  }
-  CCR_X = direction ? CCR_X + (active_setpoint.x/step_speed) : CCR_X - (active_setpoint.x/step_speed);
-  CCR_Y = direction ? CCR_Y + (active_setpoint.y/step_speed) : CCR_Y - (active_setpoint.y/step_speed);
 
+  uint8_t test_buf[UART_TX_BUF_LEN];
+  sprintf((char*)test_buf, "profile_index = %d\n", setpoint_index); // Modulo truncates to 2 digits
+  HAL_UART_Transmit(HUART_PTR, test_buf, strlen((char*)test_buf), UART_TX_TIMEOUT);
+
+  sprintf((char*)test_buf, "active_setpoint.x = %d\n", active_setpoint.x); // Modulo truncates to 2 digits
+  HAL_UART_Transmit(HUART_PTR, test_buf, strlen((char*)test_buf), UART_TX_TIMEOUT);
+
+  sprintf((char*)test_buf, "active_setpoint.y = %d\n", active_setpoint.y); // Modulo truncates to 2 digits
+  HAL_UART_Transmit(HUART_PTR, test_buf, strlen((char*)test_buf), UART_TX_TIMEOUT);
+
+  sprintf((char*)test_buf, "CCR_X = %d\n", CCR_X); // Modulo truncates to 2 digits
+  HAL_UART_Transmit(HUART_PTR, test_buf, strlen((char*)test_buf), UART_TX_TIMEOUT);
+
+  sprintf((char*)test_buf, "CCR_Y = %d\n", CCR_Y); // Modulo truncates to 2 digits
+  HAL_UART_Transmit(HUART_PTR, test_buf, strlen((char*)test_buf), UART_TX_TIMEOUT);
+  
+  
+  uint16_t step = (STEP_DELAY/1000) * (PULSE_WIDTH_POS_90 - PULSE_WIDTH_NEG_90) / (SPEED_MAX + 1U - active_setpoint.speed);
+
+  // Increment or decrement CCR_X towards active_setpoint.x
+  if (CCR_X < active_setpoint.x) {
+    CCR_X += step;
+    if (CCR_X > active_setpoint.x) {
+      CCR_X = active_setpoint.x; // Prevent overshooting
+    }
+  } else if (CCR_X > active_setpoint.x) {
+    CCR_X -= step;
+    if (CCR_X < active_setpoint.x) {
+      CCR_X = active_setpoint.x; // Prevent overshooting
+    }
+  }
+
+  // Increment or decrement CCR_Y towards active_setpoint.y
+  if (CCR_Y < active_setpoint.y) {
+    CCR_Y += step;
+    if (CCR_Y > active_setpoint.y) {
+      CCR_Y = active_setpoint.y; // Prevent overshooting
+    }
+  } else if (CCR_Y > active_setpoint.y) {
+    CCR_Y -= step;
+    if (CCR_Y < active_setpoint.y) {
+      CCR_Y = active_setpoint.y; // Prevent overshooting
+    }
+  }
+  
+  if (CCR_X == active_setpoint.x && CCR_Y == active_setpoint.y) {
+    setpoint_index++;
+  }
+
+  HAL_Delay(STEP_DELAY);
   return RUN_PROFILE_STATE;
 }
 
@@ -1197,6 +1238,7 @@ int main(void)
         break;
       case RUN_PROFILE_STATE:
         next_state_e = run_profile_state_handler();
+        break;
       default:
         next_state_e = startup_state_handler();
         break;
