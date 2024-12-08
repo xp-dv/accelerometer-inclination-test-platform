@@ -217,9 +217,10 @@ pidcontroller_t pid = {
 };
 
 active_setpoint_t active_setpoint;
-previous_setpoint_t previous_setpoint ={
-    .x = PULSE_WIDTH_0,
-    .y = PULSE_WIDTH_0,
+
+previous_setpoint_t previous_setpoint = {
+  .x = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X ,
+  .y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y,
 };
 run_flag_t run_flag = OFF_FLAG;
 
@@ -454,8 +455,8 @@ void adxl_read(void) {
   adxl_y_ang = atan2f(-x_g, sqrtf(y_g * y_g + z_g * z_g));
   // z_ang = atan2f(sqrtf(x_g * x_g + y_g * y_g), z_g);
 
-  adxl_x_ang = adxl_x_ang * (180.0f / M_PI);
-  adxl_y_ang = adxl_y_ang * (180.0f / M_PI);
+  adxl_x_ang = adxl_x_ang * (180.0f / M_PI) + 90U;
+  adxl_y_ang = adxl_y_ang * (180.0f / M_PI) + 90U;
   // z_ang = z_ang * (180.0f / M_PI);
 }
 
@@ -469,13 +470,13 @@ status_code_t move(input_t x, input_t y, input_t speed) {
   }
 
  
-  active_setpoint.x = degtoccr(x);
-  active_setpoint.y= degtoccr(y);
+  active_setpoint.x = degtoccr(x) + PULSE_WIDTH_OFFSET_X;
+  active_setpoint.y = degtoccr(y) + PULSE_WIDTH_OFFSET_Y;
   active_setpoint.speed = speed;
   
   // TODO: Take current position and set that as start point
-  CCR_X = previous_setpoint.x;
-  CCR_Y = previous_setpoint.y;
+  // CCR_X = previous_setpoint.x;
+  // CCR_Y = previous_setpoint.y;
   next_state_e = RUN_SETPOINT_STATE;
   return STATUS_OK;
 }
@@ -483,8 +484,8 @@ status_code_t move(input_t x, input_t y, input_t speed) {
 status_code_t run_setpoint(input_t index, input_t profile) {
   // TODO: Allows the user to recall a setpoint out of a specific profile instead of remembering/storing it for move().
   setpoint_t* setpoint = SETPOINT_ADDRESS(index, profile);
-  active_setpoint.x = degtoccr(setpoint->x);
-  active_setpoint.y = degtoccr(setpoint->y);
+  active_setpoint.x = degtoccr(setpoint->x) + PULSE_WIDTH_OFFSET_X;
+  active_setpoint.y = degtoccr(setpoint->y) + PULSE_WIDTH_OFFSET_Y;
   active_setpoint.speed = setpoint->speed;
   
   // TODO: Take current position and set that as start point
@@ -497,8 +498,8 @@ status_code_t run_setpoint(input_t index, input_t profile) {
 
 status_code_t run_profile(input_t profile) {
   active_setpoint.profile = profile;
-  CCR_X = previous_setpoint.x;
-  CCR_Y = previous_setpoint.y;
+  // CCR_X = previous_setpoint.x;
+  // CCR_Y = previous_setpoint.y;
   next_state_e = RUN_PROFILE_STATE;
   return STATUS_OK;
 }
@@ -936,8 +937,13 @@ system_state_t startup_state_handler(void) {
   //* PWM
   // Internal Clock (HCLK) = 100 MHz. If Prescaler = (100 - 1) & Max Timer Count = (20000 - 1),
   // then f = 100 MHz / 100 = 1 MHz, T = 1 us, and PWM f = 1/(20000 * T) = 50 Hz
+  CCR_X = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X;
+  CCR_Y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y;
+
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
+  move(90, 90, 1);
+
 
   //* Servo Interrupt Start
   HAL_TIM_Base_Start_IT(&htim4);
@@ -948,6 +954,7 @@ system_state_t startup_state_handler(void) {
   //* UART
   // Rx Interrupt Setup
   HAL_UART_Receive_IT(HUART_PTR, (uint8_t *)uart_rx_char, 1U); // Receive single char
+  
   // Startup Message
   uint8_t startup_msg[] = "[00]{0}\n"; // STATUS_OK / Device is ready
   HAL_UART_Transmit(HUART_PTR, startup_msg, strlen((char*)startup_msg), UART_TX_TIMEOUT);
@@ -1072,7 +1079,7 @@ system_state_t run_setpoint_state_handler(void) {
     return IDLE_STATE;
   }
 
-  uint16_t step = (STEP_DELAY/1000) * (PULSE_WIDTH_POS_90 - PULSE_WIDTH_NEG_90) / (SPEED_MAX + 1U - active_setpoint.speed);
+  uint16_t step =  STEP_DELAY * (PULSE_WIDTH_POS_90 - PULSE_WIDTH_NEG_90) / (SPEED_MAX + 1U - active_setpoint.speed) / 1000;
 
   // Increment or decrement CCR_X towards active_setpoint.x
   if (CCR_X < active_setpoint.x) {
@@ -1115,29 +1122,29 @@ system_state_t run_profile_state_handler(void) {
     return IDLE_STATE;
   }
   
-  active_setpoint.x = degtoccr(setpoint->x);
-  active_setpoint.y = degtoccr(setpoint->y);
+  active_setpoint.x = degtoccr(setpoint->x) + PULSE_WIDTH_OFFSET_X;
+  active_setpoint.y = degtoccr(setpoint->y) + PULSE_WIDTH_OFFSET_Y;
   active_setpoint.speed = setpoint->speed;
 
-  uint8_t test_buf[UART_TX_BUF_LEN];
-  sprintf((char*)test_buf, "profile_index = %d\n", setpoint_index); // Modulo truncates to 2 digits
-  HAL_UART_Transmit(HUART_PTR, test_buf, strlen((char*)test_buf), UART_TX_TIMEOUT);
+  // uint8_t test_buf[UART_TX_BUF_LEN];
+  // sprintf((char*)test_buf, "profile_index = %d\n", setpoint_index); // Modulo truncates to 2 digits
+  // HAL_UART_Transmit(HUART_PTR, test_buf, strlen((char*)test_buf), UART_TX_TIMEOUT);
 
-  sprintf((char*)test_buf, "active_setpoint.x = %d\n", active_setpoint.x); // Modulo truncates to 2 digits
-  HAL_UART_Transmit(HUART_PTR, test_buf, strlen((char*)test_buf), UART_TX_TIMEOUT);
+  // sprintf((char*)test_buf, "active_setpoint.x = %d\n", active_setpoint.x); // Modulo truncates to 2 digits
+  // HAL_UART_Transmit(HUART_PTR, test_buf, strlen((char*)test_buf), UART_TX_TIMEOUT);
 
-  sprintf((char*)test_buf, "active_setpoint.y = %d\n", active_setpoint.y); // Modulo truncates to 2 digits
-  HAL_UART_Transmit(HUART_PTR, test_buf, strlen((char*)test_buf), UART_TX_TIMEOUT);
+  // sprintf((char*)test_buf, "active_setpoint.y = %d\n", active_setpoint.y); // Modulo truncates to 2 digits
+  // HAL_UART_Transmit(HUART_PTR, test_buf, strlen((char*)test_buf), UART_TX_TIMEOUT);
 
-  sprintf((char*)test_buf, "CCR_X = %d\n", CCR_X); // Modulo truncates to 2 digits
-  HAL_UART_Transmit(HUART_PTR, test_buf, strlen((char*)test_buf), UART_TX_TIMEOUT);
+  // sprintf((char*)test_buf, "CCR_X = %d\n", CCR_X); // Modulo truncates to 2 digits
+  // HAL_UART_Transmit(HUART_PTR, test_buf, strlen((char*)test_buf), UART_TX_TIMEOUT);
 
-  sprintf((char*)test_buf, "CCR_Y = %d\n", CCR_Y); // Modulo truncates to 2 digits
-  HAL_UART_Transmit(HUART_PTR, test_buf, strlen((char*)test_buf), UART_TX_TIMEOUT);
+  // sprintf((char*)test_buf, "CCR_Y = %d\n", CCR_Y); // Modulo truncates to 2 digits
+  // HAL_UART_Transmit(HUART_PTR, test_buf, strlen((char*)test_buf), UART_TX_TIMEOUT);
   
   
-  uint16_t step = (STEP_DELAY/1000) * (PULSE_WIDTH_POS_90 - PULSE_WIDTH_NEG_90) / (SPEED_MAX + 1U - active_setpoint.speed);
-
+  uint16_t step =  STEP_DELAY * (PULSE_WIDTH_POS_90 - PULSE_WIDTH_NEG_90) / (SPEED_MAX + 1U - active_setpoint.speed) / 1000;
+  
   // Increment or decrement CCR_X towards active_setpoint.x
   if (CCR_X < active_setpoint.x) {
     CCR_X += step;
@@ -1166,6 +1173,7 @@ system_state_t run_profile_state_handler(void) {
   
   if (CCR_X == active_setpoint.x && CCR_Y == active_setpoint.y) {
     setpoint_index++;
+    HAL_Delay(PROFILE_WAIT);
   }
 
   HAL_Delay(STEP_DELAY);
