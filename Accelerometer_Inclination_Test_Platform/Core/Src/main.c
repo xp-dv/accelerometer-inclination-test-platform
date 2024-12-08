@@ -50,10 +50,13 @@ typedef enum {
 } system_state_t;
 
 typedef enum {
-  // Instruction code 0 = RESERVED
+  // Instruction Code 0 = RESERVED
   // Motion Commands
   MOVE_INSTRUCTION = 1,
   STOP_INSTRUCTION,
+  CANCEL_INSTRUCTION,
+  RUN_SETPOINT_INSTRUCTION,
+  RUN_PROFILE_INSTRUCTION,
   // Setpoint Commands
   GET_SETPOINT_INSTRUCTION,
   ADD_SETPOINT_INSTRUCTION,
@@ -61,8 +64,6 @@ typedef enum {
   // Profile Commands
   GET_PROFILE_INSTRUCTION,
   CLEAR_PROFILE_INSTRUCTION,
-  RUN_PROFILE_INSTRUCTION,
-  RUN_SETPOINT_INSTRUCTION,
   // Test Commands
   TEST_SERVOS_INSTRUCTION = 995U,
   TEST_ADXL_INSTRUCTION,
@@ -250,23 +251,24 @@ void adxl_read(void);
 
 //* Instruction Function Prototypes
 status_code_t move(input_t x, input_t y, input_t speed);
+status_code_t stop(void);
+status_code_t cancel(void);
+status_code_t run_setpoint(input_t index, input_t profile);
+status_code_t run_profile(input_t profile);
 status_code_t get_setpoint(input_t index, input_t profile);
 status_code_t add_setpoint(input_t x_ang, input_t y_ang, input_t speed, input_t profile);
 status_code_t remove_setpoint(input_t index, input_t profile);
 status_code_t get_profile(input_t profile);
 status_code_t clear_profile(input_t profile);
-status_code_t run_profile(input_t profile);
-status_code_t run_setpoint(input_t index, input_t profile);
 status_code_t test_servos(void);
 status_code_t test_adxl(void);
 status_code_t test_flash(void);
 
 //* Event Handler Prototypes
-system_state_t startup_state_handler(void);
 void idle_state_handler(void);
+system_state_t startup_state_handler(void);
 system_state_t run_setpoint_state_handler(void);
-system_state_t move_handler(void);
-system_state_t run_setpoint_handler(void);
+system_state_t run_profile_state_handler(void);
 
 /* USER CODE END PFP */
 
@@ -494,15 +496,38 @@ status_code_t run_profile(input_t profile) {
   next_state_e = RUN_PROFILE_STATE;
   profile_index = 0;
   active_setpoint.profile = profile;
-  return STATUS_OK; 
+  return STATUS_OK;
 }
 
-status_code_t stop() {
+status_code_t stop(void) {
+  /**
+   * TODO:
+   * Implement stop interrupt that can immediately stop the pwm signal and cut power.
+   * Maybe use a simple transistor and GPIO pin?
+   */
+
+  // Escape RUN_STATE
+  next_state_e = IDLE_STATE;
+
   // Stop pwm signals to stop platforms/servos
   HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1);
   HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_2);
   previous_setpoint.x = CCR_X;
   previous_setpoint.y = CCR_Y;
+
+  return STATUS_OK;
+}
+
+status_code_t cancel(void) {
+  // Escape RUN_STATE
+  next_state_e = IDLE_STATE;
+  active_setpoint.x = 0;
+  active_setpoint.y = 0;
+  active_setpoint.speed = 1;
+  active_setpoint.error = 0;
+  CCR_X = PULSE_WIDTH_0;
+  CCR_Y = PULSE_WIDTH_0;
+
   return STATUS_OK;
 }
 
@@ -974,10 +999,19 @@ void idle_state_handler(void) {
           uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
           break;
         case STOP_INSTRUCTION:
-          next_state_e = IDLE_STATE;
-          // TODO: Implement stop interrupt that can immediately stop the pwm signal and cut power.
-          // TODO: Maybe use a simple transistor and GPIO pin?
           instruction.status = stop();
+          uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
+          break;
+        case CANCEL_INSTRUCTION:
+          instruction.status = cancel();
+          uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
+          break;
+        case RUN_SETPOINT_INSTRUCTION:
+          instruction.status = run_setpoint(instruction.args[0], instruction.args[1]);
+          uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
+          break;
+        case RUN_PROFILE_INSTRUCTION:
+          instruction.status = run_profile(instruction.args[0]);
           uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
           break;
         case GET_SETPOINT_INSTRUCTION:
@@ -999,14 +1033,6 @@ void idle_state_handler(void) {
           break;
         case CLEAR_PROFILE_INSTRUCTION:
           instruction.status = clear_profile(instruction.args[0]);
-          uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
-          break;
-        case RUN_PROFILE_INSTRUCTION:
-          instruction.status = run_profile(instruction.args[0]);
-          uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
-          break;
-        case RUN_SETPOINT_INSTRUCTION:
-          instruction.status = run_setpoint(instruction.args[0], instruction.args[1]);
           uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
           break;
         case TEST_SERVOS_INSTRUCTION:
@@ -1088,8 +1114,7 @@ system_state_t run_profile_state_handler(void) {
   CCR_Y = direction ? CCR_Y + (active_setpoint.y/step_speed) : CCR_Y - (active_setpoint.y/step_speed);
 
   return RUN_PROFILE_STATE;
-  }
-
+}
 
 /* USER CODE END 0 */
 
