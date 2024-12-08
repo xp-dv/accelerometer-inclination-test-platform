@@ -113,6 +113,11 @@ typedef struct active_setpoint {
   int error;
 } active_setpoint_t;
 
+typedef struct previous_setpoint {
+  ccr_t x;
+  ccr_t y;
+} previous_setpoint_t;
+
 typedef enum{
   OFF_FLAG,
   MOVE_FLAG,
@@ -207,7 +212,12 @@ pidcontroller_t pid = {
   .prevMeasurement = 0.0,
   .out = 0.0
 };
+
 active_setpoint_t active_setpoint;
+previous_setpoint_t previous_setpoint ={
+    .x = PULSE_WIDTH_0,
+    .y = PULSE_WIDTH_0,
+};
 run_flag_t run_flag = OFF_FLAG;
 
 //* Startup State
@@ -453,8 +463,8 @@ status_code_t move(input_t x, input_t y, input_t speed) {
   active_setpoint.speed = speed;
 
   // TODO: Take current position and set that as start point
-  CCR_X = PULSE_WIDTH_0;
-  CCR_Y = PULSE_WIDTH_0;
+  CCR_X = previous_setpoint.x;
+  CCR_Y = previous_setpoint.y;
 
   return STATUS_OK;
 }
@@ -471,8 +481,8 @@ status_code_t run_setpoint(input_t index, input_t profile) {
   // pid.Kp = (pid.Kp) * (active_setpoint.speed)/10;
 
   // TODO: Take current position and set that as start point
-  CCR_X = PULSE_WIDTH_0;
-  CCR_Y = PULSE_WIDTH_0;
+  CCR_X = previous_setpoint.x;
+  CCR_Y = previous_setpoint.y;
 
   return STATUS_OK;
 }
@@ -1055,6 +1065,8 @@ system_state_t run_state_handler(void) {
 
   if (((direction == 1) && (CCR_X >= active_setpoint.x) && CCR_Y >= (active_setpoint.y)) ||
       ((direction == 0) && (CCR_X <= active_setpoint.x) && CCR_Y <= (active_setpoint.y))) {
+    previous_setpoint.x = active_setpoint.x;
+    previous_setpoint.y = active_setpoint.y;
     return IDLE_STATE;
   }
   CCR_X = direction ? CCR_X + (active_setpoint.x/step_speed) : CCR_X - (active_setpoint.x/step_speed);
