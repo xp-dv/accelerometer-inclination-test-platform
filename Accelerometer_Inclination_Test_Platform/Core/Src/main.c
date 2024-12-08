@@ -261,7 +261,7 @@ status_code_t test_flash(void);
 //* Event Handler Prototypes
 system_state_t startup_state_handler(void);
 void idle_state_handler(void);
-system_state_t run_state_handler(void);
+system_state_t run_setpoint_state_handler(void);
 system_state_t move_handler(void);
 system_state_t run_setpoint_handler(void);
 
@@ -515,7 +515,8 @@ status_code_t stop() {
   // Stop pwm signals to stop platforms/servos
   HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1);
   HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_2);
-
+  previous_setpoint.x = CCR_X;
+  previous_setpoint.y = CCR_Y;
   return STATUS_OK;
 }
 
@@ -1058,7 +1059,7 @@ void idle_state_handler(void) {
   }
 }
 
-system_state_t run_state_handler(void) {
+system_state_t run_setpoint_state_handler(void) {
   int step_speed = 500/active_setpoint.speed;
   uint8_t direction = ((int)active_setpoint.x > PULSE_WIDTH_0) ? 1U : 0U;
   HAL_Delay(50);
@@ -1137,7 +1138,7 @@ int main(void)
       case IDLE_STATE:
         break;
       case RUN_STATE:
-        next_state_e = run_state_handler();
+        next_state_e = run_setpoint_state_handler();
         break;
       default:
         next_state_e = startup_state_handler();
