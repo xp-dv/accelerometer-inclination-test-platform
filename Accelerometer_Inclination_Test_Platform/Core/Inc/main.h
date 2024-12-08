@@ -145,6 +145,7 @@ void Error_Handler(void);
 #define ANGLE_RANGE (ANGLE_MAX - ANGLE_MIN)
 #define SPEED_MIN 1U
 #define SPEED_MAX 10U
+#define STEP_DELAY 50U // ms
 
 #define PULSE_WIDTH_RANGE (PULSE_WIDTH_MAX - PULSE_WIDTH_MIN)
 #define PULSE_WIDTH_MIN 500 // us

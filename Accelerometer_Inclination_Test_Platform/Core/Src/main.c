@@ -521,12 +521,7 @@ status_code_t stop(void) {
 status_code_t cancel(void) {
   // Escape RUN_STATE
   next_state_e = IDLE_STATE;
-  active_setpoint.x = 0;
-  active_setpoint.y = 0;
-  active_setpoint.speed = 1;
-  active_setpoint.error = 0;
-  CCR_X = PULSE_WIDTH_0;
-  CCR_Y = PULSE_WIDTH_0;
+  move(0, 0, 1);
 
   return STATUS_OK;
 }
@@ -559,7 +554,7 @@ status_code_t add_setpoint(input_t x, input_t y, input_t speed, input_t profile)
       (x < ANGLE_INPUT_MIN || x > ANGLE_INPUT_MAX) ||
       (y < ANGLE_INPUT_MIN || y > ANGLE_INPUT_MAX) ||
       (speed < SPEED_MIN || speed > SPEED_MAX)) {
-      return STATUS_ERR_INVALID_ARG; // Return error if any argument is out of range
+      return STATUS_ERR_ARG_OUT_OF_RANGE; // Return error if any argument is out of range
   }
   // Get address and index of last setpoint
   setpoint_t* setpoint = PROFILE_ADDRESS(profile);
@@ -1072,19 +1067,39 @@ void idle_state_handler(void) {
 }
 
 system_state_t run_setpoint_state_handler(void) {
-  int step_speed = 500/active_setpoint.speed;
-  uint8_t direction = ((int)active_setpoint.x > PULSE_WIDTH_0) ? 1U : 0U;
-  HAL_Delay(50);
-
-  if (((direction == 1) && (CCR_X >= active_setpoint.x) && CCR_Y >= (active_setpoint.y)) ||
-      ((direction == 0) && (CCR_X <= active_setpoint.x) && CCR_Y <= (active_setpoint.y))) {
-    previous_setpoint.x = active_setpoint.x;
-    previous_setpoint.y = active_setpoint.y;
+  if (CCR_X == active_setpoint.x && CCR_Y == active_setpoint.y) {
     return IDLE_STATE;
   }
-  CCR_X = direction ? CCR_X + (active_setpoint.x/step_speed) : CCR_X - (active_setpoint.x/step_speed);
-  CCR_Y = direction ? CCR_Y + (active_setpoint.y/step_speed) : CCR_Y - (active_setpoint.y/step_speed);
 
+  uint16_t step = (PULSE_WIDTH_POS_90 - PULSE_WIDTH_NEG_90) * ((SPEED_MAX + 1) - active_setpoint.speed) * STEP_DELAY/1000;
+
+  // Increment or decrement CCR_X towards active_setpoint.x
+  if (CCR_X < active_setpoint.x) {
+    CCR_X += step;
+    if (CCR_X > active_setpoint.x) {
+      CCR_X = active_setpoint.x; // Prevent overshooting
+    }
+  } else if (CCR_X > active_setpoint.x) {
+    CCR_X -= step;
+    if (CCR_X < active_setpoint.x) {
+      CCR_X = active_setpoint.x; // Prevent overshooting
+    }
+  }
+
+  // Increment or decrement CCR_Y towards active_setpoint.y
+  if (CCR_Y < active_setpoint.y) {
+    CCR_Y += step;
+    if (CCR_Y > active_setpoint.y) {
+      CCR_Y = active_setpoint.y; // Prevent overshooting
+    }
+  } else if (CCR_Y > active_setpoint.y) {
+    CCR_Y -= step;
+    if (CCR_Y < active_setpoint.y) {
+      CCR_Y = active_setpoint.y; // Prevent overshooting
+    }
+  }
+
+  HAL_Delay(STEP_DELAY);
   return RUN_SETPOINT_STATE;
 }
 
