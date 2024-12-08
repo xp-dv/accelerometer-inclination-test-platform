@@ -44,6 +44,7 @@ typedef uint16_t ccr_t; // Typedef set to fit CCR register value >= 0 and <= 200
 
 typedef enum {
   STARTUP_STATE,
+  HOME_STATE,
   IDLE_STATE,
   RUN_SETPOINT_STATE,
   RUN_PROFILE_STATE,
@@ -114,18 +115,13 @@ typedef struct active_setpoint {
   input_t speed;
   int error;
   input_t profile;
+  input_t index;
 } active_setpoint_t;
 
 typedef struct previous_setpoint {
   ccr_t x;
   ccr_t y;
 } previous_setpoint_t;
-
-typedef enum{
-  OFF_FLAG,
-  MOVE_FLAG,
-  RUN_SETPOINT_FLAG,
-} run_flag_t;
 
 // Struct for PID controller
 typedef struct {
@@ -216,13 +212,14 @@ pidcontroller_t pid = {
   .out = 0.0
 };
 
-active_setpoint_t active_setpoint;
+active_setpoint_t active_setpoint = {
+  .index = 0,
+};
 
 previous_setpoint_t previous_setpoint = {
   .x = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_X ,
   .y = PULSE_WIDTH_0 + PULSE_WIDTH_OFFSET_Y,
 };
-run_flag_t run_flag = OFF_FLAG;
 
 //* Startup State
 system_state_t next_state_e = STARTUP_STATE;
@@ -267,6 +264,7 @@ status_code_t test_flash(void);
 //* Event Handler Prototypes
 void idle_state_handler(void);
 system_state_t startup_state_handler(void);
+system_state_t home_state_handler(void);
 system_state_t run_setpoint_state_handler(void);
 system_state_t run_profile_state_handler(void);
 
@@ -522,10 +520,9 @@ status_code_t stop(void) {
 }
 
 status_code_t cancel(void) {
+  active_setpoint.index = 0;
   // Escape RUN_STATE
-  next_state_e = IDLE_STATE;
-  move(0, 0, 1);
-
+  next_state_e = HOME_STATE;
   return STATUS_OK;
 }
 
@@ -962,6 +959,10 @@ system_state_t startup_state_handler(void) {
   return IDLE_STATE;
 }
 
+system_state_t home_state_handler(void) {
+  return IDLE_STATE;
+}
+
 void idle_state_handler(void) {
   static char uart_tx_buf[UART_TX_BUF_LEN];
   static char uart_rx_buf[UART_RX_BUF_LEN];
@@ -1112,13 +1113,17 @@ system_state_t run_setpoint_state_handler(void) {
 }
 
 system_state_t run_profile_state_handler(void) {
-  static int setpoint_index = 0;
+  HAL_Delay(STEP_DELAY);
+  if (next_state_e == IDLE_STATE) {
+    return IDLE_STATE;
+  }
+
   // Get setpoint pointer from index and profile arguments
-  setpoint_t* setpoint = SETPOINT_ADDRESS(setpoint_index, active_setpoint.profile);
+  setpoint_t* setpoint = SETPOINT_ADDRESS(active_setpoint.index, active_setpoint.profile);
 
   // Check if requested setpoint contains data
   if (setpoint->x == FLASH_EMPTY && setpoint->y == FLASH_EMPTY && setpoint->speed == FLASH_EMPTY) {
-    setpoint_index = 0;
+    active_setpoint.index = 0;
     return IDLE_STATE;
   }
   
@@ -1126,23 +1131,6 @@ system_state_t run_profile_state_handler(void) {
   active_setpoint.y = degtoccr(setpoint->y) + PULSE_WIDTH_OFFSET_Y;
   active_setpoint.speed = setpoint->speed;
 
-  // uint8_t test_buf[UART_TX_BUF_LEN];
-  // sprintf((char*)test_buf, "profile_index = %d\n", setpoint_index); // Modulo truncates to 2 digits
-  // HAL_UART_Transmit(HUART_PTR, test_buf, strlen((char*)test_buf), UART_TX_TIMEOUT);
-
-  // sprintf((char*)test_buf, "active_setpoint.x = %d\n", active_setpoint.x); // Modulo truncates to 2 digits
-  // HAL_UART_Transmit(HUART_PTR, test_buf, strlen((char*)test_buf), UART_TX_TIMEOUT);
-
-  // sprintf((char*)test_buf, "active_setpoint.y = %d\n", active_setpoint.y); // Modulo truncates to 2 digits
-  // HAL_UART_Transmit(HUART_PTR, test_buf, strlen((char*)test_buf), UART_TX_TIMEOUT);
-
-  // sprintf((char*)test_buf, "CCR_X = %d\n", CCR_X); // Modulo truncates to 2 digits
-  // HAL_UART_Transmit(HUART_PTR, test_buf, strlen((char*)test_buf), UART_TX_TIMEOUT);
-
-  // sprintf((char*)test_buf, "CCR_Y = %d\n", CCR_Y); // Modulo truncates to 2 digits
-  // HAL_UART_Transmit(HUART_PTR, test_buf, strlen((char*)test_buf), UART_TX_TIMEOUT);
-  
-  
   uint16_t step =  STEP_DELAY * (PULSE_WIDTH_POS_90 - PULSE_WIDTH_NEG_90) / (SPEED_MAX + 1U - active_setpoint.speed) / 1000;
   
   // Increment or decrement CCR_X towards active_setpoint.x
@@ -1172,13 +1160,16 @@ system_state_t run_profile_state_handler(void) {
   }
   
   if (CCR_X == active_setpoint.x && CCR_Y == active_setpoint.y) {
-    setpoint_index++;
+    active_setpoint.index++;
     HAL_Delay(PROFILE_WAIT);
   }
-
-  HAL_Delay(STEP_DELAY);
-  return RUN_PROFILE_STATE;
+  if (next_state_e == RUN_PROFILE_STATE) {
+    return RUN_PROFILE_STATE;
+  } else {
+    return IDLE_STATE;
+  }
 }
+
 
 /* USER CODE END 0 */
 
@@ -1238,6 +1229,9 @@ int main(void)
     switch (next_state_e) {
       case STARTUP_STATE:
         next_state_e = startup_state_handler();
+        break;
+      case HOME_STATE:
+        next_state_e = home_state_handler();
         break;
       case IDLE_STATE:
         break;
