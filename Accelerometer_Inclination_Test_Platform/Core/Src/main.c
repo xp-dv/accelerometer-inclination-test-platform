@@ -45,7 +45,8 @@ typedef uint16_t ccr_t; // Typedef set to fit CCR register value >= 0 and <= 200
 typedef enum {
   STARTUP_STATE,
   IDLE_STATE,
-  RUN_STATE,
+  RUN_SETPOINT_STATE,
+  RUN_PROFILE_STATE,
 } system_state_t;
 
 typedef enum {
@@ -111,6 +112,7 @@ typedef struct active_setpoint {
   ccr_t y;
   input_t speed;
   int error;
+  input_t profile;
 } active_setpoint_t;
 
 typedef struct previous_setpoint {
@@ -189,6 +191,7 @@ float pos_x;
 float pos_y;
 float pos_x_last;
 float pos_y_last;
+int profile_index;
 
 //* UART
 char uart_rx_char[2]; // Stores Rx char and string terminator
@@ -457,7 +460,7 @@ void adxl_read(void) {
 
 //* Instruction Functions
 status_code_t move(input_t x, input_t y, input_t speed) {
-  next_state_e = RUN_STATE;
+  next_state_e = RUN_SETPOINT_STATE;
   active_setpoint.x = degtoccr(x);
   active_setpoint.y= degtoccr(y);
   active_setpoint.speed = speed;
@@ -471,7 +474,7 @@ status_code_t move(input_t x, input_t y, input_t speed) {
 
 status_code_t run_setpoint(input_t index, input_t profile) {
   // TODO: Allows the user to recall a setpoint out of a specific profile instead of remembering/storing it for move().
-  next_state_e = RUN_STATE;
+  next_state_e = RUN_SETPOINT_STATE;
   //run_flag = RUN_SETPOINT_FLAG;
   setpoint_t* setpoint = SETPOINT_ADDRESS(index, profile);
   active_setpoint.x = degtoccr(setpoint->x);
@@ -488,26 +491,9 @@ status_code_t run_setpoint(input_t index, input_t profile) {
 }
 
 status_code_t run_profile(input_t profile) {
-  next_state_e = RUN_STATE;
-  //run_flag = RUN_SETPOINT_FLAG;
-  for (int index = 0; index < PROFILE_LEN;) {
-    setpoint_t* setpoint = SETPOINT_ADDRESS(index, profile);
-    active_setpoint.x = setpoint->x;
-    active_setpoint.y = setpoint->y;
-    active_setpoint.speed = setpoint->speed;
-    //convert speed to Kp value, save to struct
-    pid.Kp = (pid.Kp) * (active_setpoint.speed)/10;
-
-    if (active_setpoint.x == FLASH_EMPTY && active_setpoint.y == FLASH_EMPTY && active_setpoint.speed == FLASH_EMPTY) {
-      // echo status OK
-      run_flag = OFF_FLAG;
-    }
-    run_setpoint(index, profile);
-    if (active_setpoint.error == 0) { // setpoint reached
-      ++index; // move to next setpoint
-    }
-  }
-
+  next_state_e = RUN_PROFILE_STATE;
+  profile_index = 0;
+  active_setpoint.profile = profile;
   return STATUS_OK; 
 }
 
@@ -1073,8 +1059,37 @@ system_state_t run_setpoint_state_handler(void) {
   CCR_X = direction ? CCR_X + (active_setpoint.x/step_speed) : CCR_X - (active_setpoint.x/step_speed);
   CCR_Y = direction ? CCR_Y + (active_setpoint.y/step_speed) : CCR_Y - (active_setpoint.y/step_speed);
 
-  return RUN_STATE;
+  return RUN_SETPOINT_STATE;
 }
+
+system_state_t run_profile_state_handler(void) {
+  if (profile_index == PROFILE_LEN) {
+    return IDLE_STATE;
+  }
+  setpoint_t* setpoint = SETPOINT_ADDRESS(profile_index, active_setpoint.profile);
+  active_setpoint.x = degtoccr(setpoint->x);
+  active_setpoint.y = degtoccr(setpoint->y);
+  active_setpoint.speed = setpoint->speed;
+  //convert speed to Kp value, save to struct
+  //pid.Kp = (pid.Kp) * (active_setpoint.speed)/10;
+  if (active_setpoint.x == FLASH_EMPTY && active_setpoint.y == FLASH_EMPTY && active_setpoint.speed == FLASH_EMPTY) {
+    // echo status OK
+    next_state_e = IDLE_STATE;
+  }
+  int step_speed = 500/active_setpoint.speed;
+  uint8_t direction = ((int)active_setpoint.x - PULSE_WIDTH_0) ? 1U : 0U;
+  HAL_Delay(50);
+  if (((direction == 1) && (CCR_X >= active_setpoint.x) && CCR_Y >= (active_setpoint.y)) ||
+    ((direction == 0) && (CCR_X <= active_setpoint.x) && CCR_Y <= (active_setpoint.y))) {
+    ++profile_index;
+    return RUN_PROFILE_STATE;
+  }
+  CCR_X = direction ? CCR_X + (active_setpoint.x/step_speed) : CCR_X - (active_setpoint.x/step_speed);
+  CCR_Y = direction ? CCR_Y + (active_setpoint.y/step_speed) : CCR_Y - (active_setpoint.y/step_speed);
+
+  return RUN_PROFILE_STATE;
+  }
+
 
 /* USER CODE END 0 */
 
@@ -1137,9 +1152,11 @@ int main(void)
         break;
       case IDLE_STATE:
         break;
-      case RUN_STATE:
+      case RUN_SETPOINT_STATE:
         next_state_e = run_setpoint_state_handler();
         break;
+      case RUN_PROFILE_STATE:
+        next_state_e = run_profile_state_handler();
       default:
         next_state_e = startup_state_handler();
         break;
