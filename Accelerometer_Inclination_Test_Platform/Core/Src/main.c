@@ -85,7 +85,7 @@ typedef enum {
   STATUS_ERR_INSTRUCTION_OUT_OF_RANGE,
   STATUS_ERR_TOO_MANY_INSTRUCTIONS,
   STATUS_ERR_INVALID_ARG,
-  STATUS_ERR_MISSING_ARGS,
+  STATUS_ERR_INVALID_ARG_COUNT,
   STATUS_ERR_TOO_MANY_ARGS,
   STATUS_ERR_ARG_OUT_OF_RANGE,
   //* Thrown by user data functions
@@ -326,7 +326,7 @@ instruction_t parse_instruction(char* parse_buf) {
   instruction_t instruction = {
     .status = STATUS_OK,
     .code = RESERVED,
-    .arg_count = 0
+    .arg_count = 0U,
   };
   char* indicator_p;
   char* terminator_p;
@@ -991,72 +991,141 @@ void idle_state_handler(void) {
       if (instruction.status != STATUS_OK) {
         uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
       } else {
-        /**
-         * TODO:
-         * Finish all instruction cases in instruction_code_t.
-         * Error check instruction.args using a list of every instruction containing their arg counts,
-         * arg limits, and if they require a profile, the profile index limit.
-         */
         //* Instruction switch
         switch (instruction.code) {
         case MOVE_INSTRUCTION:
+          if (instruction.arg_count != 3U) {
+            instruction.status = STATUS_ERR_INVALID_ARG_COUNT;
+            uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
+            break;
+          }
           instruction.status = move(instruction.args[0], instruction.args[1], instruction.args[2]);
           uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
           break;
         case STOP_INSTRUCTION:
+          if (instruction.arg_count != 0U) {
+            instruction.status = STATUS_ERR_INVALID_ARG_COUNT;
+            uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
+            break;
+          }
           instruction.status = stop();
           uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
           break;
         case CANCEL_INSTRUCTION:
+          if (instruction.arg_count != 0U) {
+            instruction.status = STATUS_ERR_INVALID_ARG_COUNT;
+            uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
+            break;
+          }
           instruction.status = cancel();
           uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
           break;
         case RUN_SETPOINT_INSTRUCTION:
+          if (instruction.arg_count != 2U) {
+            instruction.status = STATUS_ERR_INVALID_ARG_COUNT;
+            uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
+            break;
+          }
           instruction.status = run_setpoint(instruction.args[0], instruction.args[1]);
           uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
           break;
         case RUN_PROFILE_INSTRUCTION:
+          if (instruction.arg_count != 1U) {
+            instruction.status = STATUS_ERR_INVALID_ARG_COUNT;
+            uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
+            break;
+          }
           instruction.status = run_profile(instruction.args[0]);
           uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
           break;
         case GET_SETPOINT_INSTRUCTION:
+          if (instruction.arg_count != 2U) {
+            instruction.status = STATUS_ERR_INVALID_ARG_COUNT;
+            uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
+            break;
+          }
           instruction.status = get_setpoint(instruction.args[0], instruction.args[1]);
           uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
           break;
         case ADD_SETPOINT_INSTRUCTION:
+          if (instruction.arg_count != 4U) {
+            instruction.status = STATUS_ERR_INVALID_ARG_COUNT;
+            uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
+            break;
+          }
           instruction.status = add_setpoint(instruction.args[0], instruction.args[1], instruction.args[2], instruction.args[3]);
           // TODO: Consider echoing index after adding. Otherwise, user can use get_profile().
           uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
           break;
         case REMOVE_SETPOINT_INSTRUCTION:
+          if (instruction.arg_count != 2U) {
+            instruction.status = STATUS_ERR_INVALID_ARG_COUNT;
+            uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
+            break;
+          }
           instruction.status = remove_setpoint(instruction.args[0], instruction.args[1]);
           uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
           break;
         case GET_PROFILE_INSTRUCTION:
+          if (instruction.arg_count != 1U) {
+            instruction.status = STATUS_ERR_INVALID_ARG_COUNT;
+            uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
+            break;
+          }
           instruction.status = get_profile(instruction.args[0]);
           uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
           break;
         case CLEAR_PROFILE_INSTRUCTION:
+          if (instruction.arg_count != 1U) {
+            instruction.status = STATUS_ERR_INVALID_ARG_COUNT;
+            uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
+            break;
+          }
           instruction.status = clear_profile(instruction.args[0]);
           uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
           break;
         case TEST_SERVOS_INSTRUCTION:
+          if (instruction.arg_count != 0U) {
+            instruction.status = STATUS_ERR_INVALID_ARG_COUNT;
+            uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
+            break;
+          }
           instruction.status = test_servos();
           uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
           break;
         case TEST_ADXL_INSTRUCTION:
+          if (instruction.arg_count != 0U) {
+            instruction.status = STATUS_ERR_INVALID_ARG_COUNT;
+            uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
+            break;
+          }
           instruction.status = test_adxl();
           uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
           break;
         case TEST_FLASH_INSTRUCTION:
+          if (instruction.arg_count != 0U) {
+            instruction.status = STATUS_ERR_INVALID_ARG_COUNT;
+            uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
+            break;
+          }
           instruction.status = test_flash();
           uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
           break;
         case TEST_LED_INSTRUCTION:
+          if (instruction.arg_count != 0U) {
+            instruction.status = STATUS_ERR_INVALID_ARG_COUNT;
+            uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
+            break;
+          }
           HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
           uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
           break;
         case TEST_ECHO_INSTRUCTION:
+          if (instruction.arg_count != 0U) {
+            instruction.status = STATUS_ERR_INVALID_ARG_COUNT;
+            uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
+            break;
+          }
           uart_echo(uart_tx_buf, uart_rx_buf, instruction.status);
           break;
 
