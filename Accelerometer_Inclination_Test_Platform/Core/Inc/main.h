@@ -385,10 +385,10 @@ status_code_t test_led(void);
 #define BAUD_RATE 38400
 #define B1_Pin GPIO_PIN_13
 #define B1_GPIO_Port GPIOC
-#define PWM_Y_Pin GPIO_PIN_0
-#define PWM_Y_GPIO_Port GPIOA
-#define PWM_X_Pin GPIO_PIN_1
+#define PWM_X_Pin GPIO_PIN_0
 #define PWM_X_GPIO_Port GPIOA
+#define PWM_Y_Pin GPIO_PIN_1
+#define PWM_Y_GPIO_Port GPIOA
 #define LD2_Pin GPIO_PIN_5
 #define LD2_GPIO_Port GPIOA
 #define ADXL_CS_Pin GPIO_PIN_10
