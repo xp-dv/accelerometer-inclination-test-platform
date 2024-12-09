@@ -51,30 +51,7 @@ typedef enum {
   RUN_TEST_STATE,
 } system_state_t;
 
-/**
- * @defgroup Instructions Instruction Set
- * @{
- * 
- * | **Name**          | **Code** | **Arguments**                            | **Description**                                                                 |
- * |-------------------|----------|------------------------------------------|---------------------------------------------------------------------------------|
- * | **MOVE**          | 001      | x-ang, y-ang, speed                      | Moves the platform to the input angle at the input speed                        |
- * | **STOP**          | 002      | None                                     | Stops the platform from moving, will require reboot                             |
- * | **CANCEL**        | 003      | None                                     | Cancels platform movement and returns platform to home position.               |
- * | **RUN_SETPOINT**  | 004      | Setpoint Index, Profile Index, wait     | Moves the platform to setpoint in profile                                      |
- * | **RUN_PROFILE**   | 005      | Profile Index                            | Moves the platform in sequence to all setpoints in the profile.                |
- * | **GET_SETPOINT**  | 006      | Setpoint Index, Profile Index           | Shows values of setpoint in profile                                             |
- * | **ADD_SETPOINT**  | 007      | x-ang, y-ang, speed, Profile Index      | Appends and saves setpoint to end of profile                                    |
- * | **REMOVE_SETPOINT**| 008     | Setpoint Index, Profile Index           | Removes setpoint from profile. Will shift succeeding setpoint indexes down.     |
- * | **GET_PROFILE**   | 009      | Profile Index                            | Shows values for all setpoints in profile                                       |
- * | **CLEAR_PROFILE** | 010      | Profile Index                            | Removes all setpoints from profile                                              |
- * | **TEST_SERVOS**   | 995      | None                                     | Moves the platform to preset setpoints                                          |
- * | **TEST_ADXL**     | 996      | None                                     | Reads and prints the output of the onboard accelerometer                       |
- * | **TEST_FLASH**    | 997      | None                                     | Saves preset values into flash                                                  |
- * | **TEST_LED**      | 998      | None                                     | Flashes the onboard LED                                                         |
- * | **TEST_ECHO**     | 999      | None                                     | Displays command entered back to user                                           |
- * 
- * @}
- */
+
 
 typedef enum {
   // Instruction Code 0 = RESERVED
@@ -149,38 +126,6 @@ typedef struct previous_setpoint {
   ccr_t y;
 } previous_setpoint_t;
 
-// Struct for PID controller
-typedef struct {
-  // Controller gain constants
-  float Kp;
-  float Ki;
-  float Kd;
-
-  // Derivative low-pass filter time constant
-  float tau;
-
-  // Output limits
-  float limMin;
-  float limMax;
-
-  // Integrator limits
-  float limMinInt;
-  float limMaxInt;
-
-  // Sample time (in seconds)
-  float T;
-
-  // Controller "memory"
-  float integrator;
-  float prevError;      // Required for integrator
-  float differentiator;
-  float prevMeasurement;    // Required for differentiator
-
-  // Controller output
-  float out;
-
-} pidcontroller_t;
-
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -221,22 +166,6 @@ char uart_circ_buf[UART_RX_BUF_LEN]; // Circular Rx Buffer
 uint8_t instruction_flag = 0;
 status_code_t uart_it_status = STATUS_OK;
 
-//pid control
-int current_setpoint_x;
-int current_setpoint_y;
-float current_position_x;
-float current_position_y;
-float pid_x;
-float pid_y;
-float pulse_width_x;
-float pulse_width_y;
-pidcontroller_t pid = {
-  .integrator = 0.0,
-  .prevError  = 0.0,
-  .differentiator  = 0.0,
-  .prevMeasurement = 0.0,
-  .out = 0.0
-};
 
 active_setpoint_t active_setpoint = {
   .index = 0,
@@ -487,7 +416,7 @@ void adxl_read(void) {
 
 //* Instruction Functions
 /** 
- * @defgroup ImmediateFunctions Immediate Functions
+ * @defgroup MovementCommands Movement Commands
  * Functions for immediate platform movement
  * @{
  * 
@@ -496,7 +425,7 @@ void adxl_read(void) {
 /**
  * @brief Sets the system's active setpoint and transitions to the movement state.
  * 
- * @ingroup ImmediateFunctions
+ * @ingroup MovementCommands
  * This function updates the system's active setpoint with the target X and Y coordinates
  * and the desired movement speed, after validating that the inputs are within the allowed
  * ranges. It also transitions the system to the state required for executing the movement.
@@ -538,7 +467,7 @@ status_code_t move(input_t x, input_t y, input_t speed) {
 /**
  * @brief Stops all active platform operations and transitions to the idle state.
  * 
- * @ingroup ImmediateFunctions
+ * @ingroup MovementCommands
  * This function halts PWM signals for the specified channels to immediately stop
  * power delivery to platforms or servos. It transitions the system to `IDLE_STATE`
  * to indicate that operations are no longer active. 
@@ -569,7 +498,7 @@ status_code_t stop(void) {
 /**
  * @brief Cancels the current operation and transitions the device to the home state.
  * 
- * @ingroup ImmediateFunctions
+ * @ingroup MovementCommands
  * This function resets the active setpoint to its initial state and transitions the 
  * system to `HOME_STATE`, which just passes the idle state 
  * 
@@ -582,21 +511,12 @@ status_code_t cancel(void) {
   next_state_e = HOME_STATE;
   return STATUS_OK;
 }
-/** @} */ // end of Immediate Functions group
 
-
-
-/** 
- * @defgroup RunCommands Run Commands
- * Functions for immediate platform movement
- * @{
- * 
- */
 
 /**
  * @brief Configures the system to run a specific setpoint with a given profile.
  * 
- * @ingroup RunCommands
+ * @ingroup MovementCommands
  * This function retrieves the setpoint parameters (X, Y, and speed) from the specified 
  * index and profile, converts the X and Y values to PWM signals, 
  * and updates the active setpoint. It then transitions the system to the `RUN_SETPOINT_STATE`.
@@ -621,7 +541,7 @@ status_code_t run_setpoint(input_t index, input_t profile) {
 /**
  * @brief Configures the system to execute a specific profile.
  * 
- * @ingroup RunCommands
+ * @ingroup MovementCommands
  * This function sets the active profile and transitions the system
  * to the `RUN_PROFILE_STATE`, preparing it for executing the associated setpoints.
  * 
@@ -635,12 +555,18 @@ status_code_t run_profile(input_t profile) {
   next_state_e = RUN_PROFILE_STATE;
   return STATUS_OK;
 }
-/** @} */ // end of Run Commands group
+/** @} */ // end of Movement Commands group
 
-
+/** 
+ * @defgroup EditProfileCommands Edit Profile Commands
+ * Functions for the editing of profiles
+ * @{
+ * 
+ *
 /**
  * @brief Retrieves and transmits the setpoint data for a given index and profile.
  * 
+ * @ingroup EditProfileCommands 
  * This function checks if the provided index and profile are within valid ranges, retrieves
  * the corresponding setpoint data, and transmits the setpoint's X, Y, and speed values over UART.
  * If the requested setpoint is invalid or empty, the function returns an error status.
@@ -677,6 +603,7 @@ status_code_t get_setpoint(input_t index, input_t profile) {
 /**
  * @brief Adds a new setpoint to the specified profile.
  * 
+ * @ingroup EditProfileCommands 
  * This function checks if the provided arguments are within valid ranges, searches for an empty 
  * slot in the profile to store the new setpoint, and writes the setpoint data (X, Y, and speed) 
  * to flash memory. If the profile is full or if there is an issue with writing to flash, the function 
@@ -734,6 +661,7 @@ status_code_t add_setpoint(input_t x, input_t y, input_t speed, input_t profile)
 /**
  * @brief Removes a setpoint from the specified profile 
  * 
+ * @ingroup EditProfileCommands 
  * This function checks if the provided arguments are within valid ranges, ensures the specified 
  * setpoint exists, and then removes the setpoint by copying the remaining setpoints into RAM, 
  * clearing the old setpoints from flash, and writing the modified setpoints back into flash memory.
@@ -798,6 +726,7 @@ status_code_t remove_setpoint(input_t index, input_t profile) {
 /**
  * @brief Retrieves the setpoints from a specified profile and transmits them via UART.
  * 
+ * @ingroup EditProfileCommands 
  * This function checks if the provided profile is within the valid range, then retrieves and transmits 
  * the setpoints associated with the profile via UART. If the profile is empty or the setpoints 
  * cannot be found, an error code is returned.
@@ -857,11 +786,12 @@ status_code_t get_profile(input_t profile) {
 
   return STATUS_OK;
 }
-
+/** @} */ // end of Edit Profile Commands group
 
 /**
  * @brief Clears the setpoints from a specific profile while preserving other profiles in flash memory.
  * 
+ * @ingroup EditProfileCommands 
  * This function checks if the provided profile is valid and contains data. It then clears all setpoints 
  * from the specified profile while retaining the other profiles. The function performs a sector-by-sector 
  * flash erase and writes the remaining profiles back into flash memory. If the flash write fails at any point, 
@@ -1013,6 +943,22 @@ status_code_t test_flash(void) {
 
   return STATUS_OK;
 }
+/**
+ * @brief Tests the onboard led 
+ * @ingroup TestFunctions Test Functions
+ * 
+ * toggles the LD2 GPIO pin and echoes the UART respones
+ * 
+ * @return status_code_t 
+ *         - STATUS_OK: If all operations for all profiles succeed.
+ *         
+ */
+status_code_t test_led(void){
+
+  HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+  return STATUS_OK;
+}
+
 /** @} */ // end of TestFunctions group
 
 

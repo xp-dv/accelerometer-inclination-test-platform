@@ -16,6 +16,84 @@
   *
   ******************************************************************************
   */
+
+ /** 
+ * @page Command_Table Command Codes and Descriptions
+ *
+ * @section overview Overview
+ * This table lists the available commands, their corresponding codes, arguments, and descriptions.
+ * These commands control the system's motion, profiles, and tests.
+ * 
+ * @section Command Syntax
+Each instruction will follow the following format:
+
+`{code|arg1 arg2 ... argN}`
+
+`<code>`: Required instruction code within the range (0-999). <br>
+`[arg1], [arg2], […]`: Optional arguments. The number of arguments and range of accepted values for each argument will depend on the instruction code given. <br>
+> Ex: Some instructions have no arguments, others require multiple.
+
+`‘{’`: All instructions must begin with the start indicator. <br>
+`‘}’`: All instructions must end with the end terminator. <br>
+`‘|’`: The first argument (if applicable) must be separated from the instruction code with the instruction separator. <br>
+`‘ ’`: All subsequent arguments must be separated by the argument separator. <br>
+All numbers must be represented in decimal.
+
+After an instruction is carried out, the received instruction will be echoed by the device in the following format:
+
+`[2-digit status code]{<code>|[arg_1] [arg_2] ... [arg_n]}`
+
+
+ * @section command_table Command Table
+ * | Name            | Code | Arguments                  | Description                                              |
+ * |-----------------|------|---------------------------|----------------------------------------------------------|
+ * | MOVE            | 001  | x-ang, y-ang, speed       | Moves the platform to the input angle at the input speed |
+ * | STOP            | 002  | None                      | Stops the platform from moving, will require reboot      |
+ * | CANCEL          | 003  | None                      | Cancels platform movement and returns to home position   |
+ * | RUN_SETPOINT    | 004  | Setpoint Index, Profile Index | Moves the platform to a setpoint in the profile        |
+ * | RUN_PROFILE     | 005  | Profile Index             | Moves the platform sequentially through profile setpoints|
+ * | GET_SETPOINT    | 006  | Setpoint Index, Profile Index | Shows values of a setpoint in the profile              |
+ * | ADD_SETPOINT    | 007  | x-ang, y-ang, speed, Profile Index | Adds a setpoint to the profile                    |
+ * | REMOVE_SETPOINT | 008  | Setpoint Index, Profile Index | Removes a setpoint from the profile                   |
+ * | GET_PROFILE     | 009  | Profile Index             | Shows values for all setpoints in the profile           |
+ * | CLEAR_PROFILE   | 010  | Profile Index             | Removes all setpoints from the profile                  |
+ * | TEST_SERVOS     | 995  | None                      | Moves the platform to preset setpoints                  |
+ * | TEST_ADXL       | 996  | None                      | Reads and prints accelerometer output                   |
+ * | TEST_FLASH      | 997  | None                      | Saves preset values into flash                          |
+ * | TEST_LED        | 998  | None                      | Toggles the onboard LED                                 |
+ * | TEST_ECHO       | 999  | None                      | Displays command entered back to the user               |
+ */
+
+
+
+/**
+ * @page Status_Codes Status Codes
+ *
+ * @section overview Overview
+ * The following table describes the various status codes used in the system to indicate success or specific types of errors.
+ *
+ * @section status_table Status Codes Table
+ * | Name                          | Code  | Description                                         |
+ * |-------------------------------|-------|-----------------------------------------------------|
+ * | STATUS_OK                     | 000   | Operation completed successfully.                  |
+ * | STATUS_ERR_UART_OF            | 001   | UART Buffer Overflow error.                        |
+ * | STATUS_ERR_NO_INDICATOR       | 002   | Instruction missing starting indicator.            |
+ * | STATUS_ERR_NO_TERMINATOR      | 003   | Instruction missing terminating character.          |
+ * | STATUS_ERR_INVALID_INSTRUCTION| 004   | Invalid instruction received.                      |
+ * | STATUS_ERR_INSTRUCTION_OUT_OF_RANGE | 005 | Instruction code is out of the allowable range. |
+ * | STATUS_ERR_TOO_MANY_INSTRUCTIONS | 006 | Too many instructions in a single command string. |
+ * | STATUS_ERR_INVALID_ARG        | 007   | One or more arguments are invalid.                 |
+ * | STATUS_ERR_INVALID_ARG_COUNT  | 008   | Argument count does not match the required number.  |
+ * | STATUS_ERR_TOO_MANY_ARGS      | 009   | Too many arguments provided in the command.         |
+ * | STATUS_ERR_ARG_OUT_OF_RANGE   | 010   | One or more arguments are outside allowable range.  |
+ * | STATUS_ERR_INVALID_SETPOINT   | 011   | The given setpoint or profile does not contain data.|
+ * | STATUS_ERR_PROFILE_FULL       | 012   | The profile is full and cannot accommodate more setpoints. |
+ * | STATUS_ERR_EMPTY_PROFILE      | 013   | The profile contains no setpoints.                 |
+ * | STATUS_ERR_FLASH_WRITE_FAILED | 014   | Flash write operation failed.                      |
+ */
+
+
+
 #pragma once
 
 /* USER CODE END Header */
