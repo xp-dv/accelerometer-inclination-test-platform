@@ -147,7 +147,7 @@ void Error_Handler(void);
 #define SPEED_MAX 10U
 #define STEP_DELAY 100U // ms
 #define PROFILE_WAIT 500U //ms
-#define TEST_PROFILE 0U 
+#define TEST_PROFILE 10U 
 
 #define PULSE_WIDTH_RANGE (PULSE_WIDTH_MAX - PULSE_WIDTH_MIN)
 #define PULSE_WIDTH_MIN 500 // us

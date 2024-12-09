@@ -530,7 +530,7 @@ status_code_t cancel(void) {
 
 status_code_t get_setpoint(input_t index, input_t profile) {
   // Check argument range 
-  if ((profile < PROFILE_ARG_MIN || profile > PROFILE_ARG_MAX) ||
+  if (/*(profile < PROFILE_ARG_MIN || profile > PROFILE_ARG_MAX) ||*/
     (index < INDEX_ARG_MIN || index > INDEX_ARG_MAX)) {
     return STATUS_ERR_ARG_OUT_OF_RANGE;
   }
@@ -742,6 +742,7 @@ status_code_t clear_profile(input_t profile) {
 status_code_t test_servos(void) {
   // TODO: Change test printout to {X Y} format
   active_setpoint.profile = TEST_PROFILE;
+  active_setpoint.index = 0;
   next_state_e = RUN_TEST_STATE;
   return STATUS_OK;
 }
@@ -1095,7 +1096,7 @@ system_state_t run_profile_state_handler(void) {
 
 system_state_t run_test_state_handler(void) {
   HAL_Delay(STEP_DELAY);
-  char test_buf[UART_TX_BUF_LEN];
+  //char test_buf[UART_TX_BUF_LEN];
   if (next_state_e == IDLE_STATE) {
     return IDLE_STATE;
   }
@@ -1144,10 +1145,12 @@ system_state_t run_test_state_handler(void) {
   if (CCR_X == active_setpoint.x && CCR_Y == active_setpoint.y) {
     active_setpoint.index++;
     HAL_Delay(PROFILE_WAIT);
-    // test_adxl();
-    // sprintf(test_buf, "{X Y}\r\n");
-    // HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
+    test_adxl();
+    get_setpoint(active_setpoint.index, active_setpoint.profile);
+    //sprintf(test_buf, "{X Y}\r\n");
+    //HAL_UART_Transmit(HUART_PTR, (uint8_t*)test_buf, strlen(test_buf), HAL_MAX_DELAY);
   }
+
   if (next_state_e == RUN_TEST_STATE) {
     return RUN_TEST_STATE;
   } else {
@@ -1226,6 +1229,7 @@ int main(void)
         break;
       case RUN_TEST_STATE:
         next_state_e = run_test_state_handler();
+        break;
       default:
         next_state_e = startup_state_handler();
         break;
