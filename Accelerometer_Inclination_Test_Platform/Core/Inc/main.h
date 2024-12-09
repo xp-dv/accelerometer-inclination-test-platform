@@ -496,7 +496,7 @@ status_code_t test_led(void);
 #define ADXL_SCALE_FACTOR 0.00414
 
 // UART
-#define HUART_PTR &huart2
+#define HUART_PTR &huart1
 #define UART_TX_TIMEOUT 50 // ms
 #define UART_TX_BUF_LEN 128U
 #define UART_RX_BUF_LEN (UART_TX_BUF_LEN - 6U) // 6 bytes is size of status code extension
