@@ -1,20 +1,20 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * @file           : main.c
-  * @brief          : Main program body
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2024 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */
+ ******************************************************************************
+ * @file           : main.c
+ * @brief          : Main program body
+ ******************************************************************************
+ * @attention
+ *
+ * Copyright (c) 2024 STMicroelectronics.
+ * All rights reserved.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
+ * If no LICENSE file comes with this software, it is provided AS-IS.
+ *
+ ******************************************************************************
+ */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
@@ -39,7 +39,6 @@
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 
-typedef uint16_t input_t; // Typedef set to fit numbers of size INPUT_T_MAX
 typedef uint16_t ccr_t; // Typedef set to fit CCR register value >= 0 and <= 20000
 
 typedef enum {
@@ -50,51 +49,6 @@ typedef enum {
   RUN_PROFILE_STATE,
   RUN_TEST_STATE,
 } system_state_t;
-
-typedef enum {
-  // Instruction Code 0 = RESERVED
-  // Motion Commands
-  MOVE_INSTRUCTION = 1,
-  STOP_INSTRUCTION,
-  CANCEL_INSTRUCTION,
-  RUN_SETPOINT_INSTRUCTION,
-  RUN_PROFILE_INSTRUCTION,
-  // Setpoint Commands
-  GET_SETPOINT_INSTRUCTION,
-  ADD_SETPOINT_INSTRUCTION,
-  REMOVE_SETPOINT_INSTRUCTION,
-  // Profile Commands
-  GET_PROFILE_INSTRUCTION,
-  CLEAR_PROFILE_INSTRUCTION,
-  // Test Commands
-  TEST_SERVOS_INSTRUCTION = 995U,
-  TEST_ADXL_INSTRUCTION,
-  TEST_FLASH_INSTRUCTION,
-  TEST_LED_INSTRUCTION,
-  TEST_ECHO_INSTRUCTION,
-} instruction_code_t;
-
-typedef enum {
-  //* General
-  STATUS_OK,
-  //* Thrown by UART Callback
-  STATUS_ERR_UART_OF, // UART Buffer Overflow
-  //* Thrown by instruction handler
-  STATUS_ERR_NO_INDICATOR,
-  STATUS_ERR_NO_TERMINATOR,
-  STATUS_ERR_INVALID_INSTRUCTION,
-  STATUS_ERR_INSTRUCTION_OUT_OF_RANGE,
-  STATUS_ERR_TOO_MANY_INSTRUCTIONS,
-  STATUS_ERR_INVALID_ARG,
-  STATUS_ERR_INVALID_ARG_COUNT,
-  STATUS_ERR_TOO_MANY_ARGS,
-  STATUS_ERR_ARG_OUT_OF_RANGE,
-  //* Thrown by user data functions
-  STATUS_ERR_EMPTY_SETPOINT,
-  STATUS_ERR_PROFILE_FULL,
-  STATUS_ERR_EMPTY_PROFILE,
-  STATUS_ERR_FLASH_WRITE_FAILED,
-} status_code_t;
 
 typedef struct {
   status_code_t status;
@@ -696,8 +650,6 @@ status_code_t test_led(void) {
 //* Event Handlers
 
 /**
- * 
- * /**
  * @defgroup StateHandler State Handlers
  * Functions for testing the system components such as servos, sensors, etc.
  * @{

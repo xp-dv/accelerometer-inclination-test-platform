@@ -1,23 +1,23 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * @file           : main.h
-  * @brief          : Header for main.c file.
-  *                   This file contains the common defines of the application.
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2024 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */
+ ******************************************************************************
+ * @file           : main.h
+ * @brief          : Header for main.c file.
+ *                   This file contains the common defines of the application.
+ ******************************************************************************
+ * @attention
+ *
+ * Copyright (c) 2024 STMicroelectronics.
+ * All rights reserved.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
+ * If no LICENSE file comes with this software, it is provided AS-IS.
+ *
+ ******************************************************************************
+ */
 
- /** 
+/** 
  * @page Command_Table Command Codes and Descriptions
  *
  * @section overview Overview
@@ -25,24 +25,24 @@
  * These commands control the system's motion, profiles, and tests.
  * 
  * @section Command Syntax
-Each instruction will follow the following format:
-
-`{code|arg1 arg2 ... argN}`
-
-`<code>`: Required instruction code within the range (0-999). <br>
-`[arg1], [arg2], […]`: Optional arguments. The number of arguments and range of accepted values for each argument will depend on the instruction code given. <br>
-> Ex: Some instructions have no arguments, others require multiple.
-
-`‘{’`: All instructions must begin with the start indicator. <br>
-`‘}’`: All instructions must end with the end terminator. <br>
-`‘|’`: The first argument (if applicable) must be separated from the instruction code with the instruction separator. <br>
-`‘ ’`: All subsequent arguments must be separated by the argument separator. <br>
-All numbers must be represented in decimal.
-
-After an instruction is carried out, the received instruction will be echoed by the device in the following format:
-
-`[2-digit status code]{<code>|[arg_1] [arg_2] ... [arg_n]}`
-
+ * Each instruction will follow the following format:
+ * 
+ * `{code|arg1 arg2 ... argN}`
+ * 
+ * `<code>`: Required instruction code within the range (0-999). <br>
+ * `[arg1], [arg2], […]`: Optional arguments. The number of arguments and range of accepted values for each argument will depend on the instruction code given. <br>
+ * > Ex: Some instructions have no arguments, others require multiple.
+ * 
+ * `‘{’`: All instructions must begin with the start indicator. <br>
+ * `‘}’`: All instructions must end with the end terminator. <br>
+ * `‘|’`: The first argument (if applicable) must be separated from the instruction code with the instruction separator. <br>
+ * `‘ ’`: All subsequent arguments must be separated by the argument separator. <br>
+ * All numbers must be represented in decimal.
+ * 
+ * After an instruction is carried out, the received instruction will be echoed by the device in the following format:
+ * 
+ * `[2-digit status code]{<code>|[arg_1] [arg_2] ... [arg_n]}`
+ * 
  * @section command_table Command Table
  * | Name            | Code | Arguments                  | Description                                              |
  * |-----------------|------|---------------------------|----------------------------------------------------------|
@@ -111,6 +111,53 @@ extern "C" {
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
+
+typedef enum {
+  //* General
+  STATUS_OK,
+  //* Thrown by UART Callback
+  STATUS_ERR_UART_OF, // UART Buffer Overflow
+  //* Thrown by instruction handler
+  STATUS_ERR_NO_INDICATOR,
+  STATUS_ERR_NO_TERMINATOR,
+  STATUS_ERR_INVALID_INSTRUCTION,
+  STATUS_ERR_INSTRUCTION_OUT_OF_RANGE,
+  STATUS_ERR_TOO_MANY_INSTRUCTIONS,
+  STATUS_ERR_INVALID_ARG,
+  STATUS_ERR_INVALID_ARG_COUNT,
+  STATUS_ERR_TOO_MANY_ARGS,
+  STATUS_ERR_ARG_OUT_OF_RANGE,
+  //* Thrown by user data functions
+  STATUS_ERR_EMPTY_SETPOINT,
+  STATUS_ERR_PROFILE_FULL,
+  STATUS_ERR_EMPTY_PROFILE,
+  STATUS_ERR_FLASH_WRITE_FAILED,
+} status_code_t;
+
+typedef enum {
+  // Instruction Code 0 = RESERVED
+  // Motion Commands
+  MOVE_INSTRUCTION = 1,
+  STOP_INSTRUCTION,
+  CANCEL_INSTRUCTION,
+  RUN_SETPOINT_INSTRUCTION,
+  RUN_PROFILE_INSTRUCTION,
+  // Setpoint Commands
+  GET_SETPOINT_INSTRUCTION,
+  ADD_SETPOINT_INSTRUCTION,
+  REMOVE_SETPOINT_INSTRUCTION,
+  // Profile Commands
+  GET_PROFILE_INSTRUCTION,
+  CLEAR_PROFILE_INSTRUCTION,
+  // Test Commands
+  TEST_SERVOS_INSTRUCTION = 995U,
+  TEST_ADXL_INSTRUCTION,
+  TEST_FLASH_INSTRUCTION,
+  TEST_LED_INSTRUCTION,
+  TEST_ECHO_INSTRUCTION,
+} instruction_code_t;
+
+typedef uint16_t input_t; // Typedef set to fit numbers of size INPUT_T_MAX
 
 /* USER CODE END ET */
 
