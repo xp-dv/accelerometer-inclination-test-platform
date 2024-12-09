@@ -51,6 +51,31 @@ typedef enum {
   RUN_TEST_STATE,
 } system_state_t;
 
+/**
+ * @defgroup Instructions Instruction Set
+ * @{
+ * 
+ * | **Name**          | **Code** | **Arguments**                            | **Description**                                                                 |
+ * |-------------------|----------|------------------------------------------|---------------------------------------------------------------------------------|
+ * | **MOVE**          | 001      | x-ang, y-ang, speed                      | Moves the platform to the input angle at the input speed                        |
+ * | **STOP**          | 002      | None                                     | Stops the platform from moving, will require reboot                             |
+ * | **CANCEL**        | 003      | None                                     | Cancels platform movement and returns platform to home position.               |
+ * | **RUN_SETPOINT**  | 004      | Setpoint Index, Profile Index, wait     | Moves the platform to setpoint in profile                                      |
+ * | **RUN_PROFILE**   | 005      | Profile Index                            | Moves the platform in sequence to all setpoints in the profile.                |
+ * | **GET_SETPOINT**  | 006      | Setpoint Index, Profile Index           | Shows values of setpoint in profile                                             |
+ * | **ADD_SETPOINT**  | 007      | x-ang, y-ang, speed, Profile Index      | Appends and saves setpoint to end of profile                                    |
+ * | **REMOVE_SETPOINT**| 008     | Setpoint Index, Profile Index           | Removes setpoint from profile. Will shift succeeding setpoint indexes down.     |
+ * | **GET_PROFILE**   | 009      | Profile Index                            | Shows values for all setpoints in profile                                       |
+ * | **CLEAR_PROFILE** | 010      | Profile Index                            | Removes all setpoints from profile                                              |
+ * | **TEST_SERVOS**   | 995      | None                                     | Moves the platform to preset setpoints                                          |
+ * | **TEST_ADXL**     | 996      | None                                     | Reads and prints the output of the onboard accelerometer                       |
+ * | **TEST_FLASH**    | 997      | None                                     | Saves preset values into flash                                                  |
+ * | **TEST_LED**      | 998      | None                                     | Flashes the onboard LED                                                         |
+ * | **TEST_ECHO**     | 999      | None                                     | Displays command entered back to user                                           |
+ * 
+ * @}
+ */
+
 typedef enum {
   // Instruction Code 0 = RESERVED
   // Motion Commands
