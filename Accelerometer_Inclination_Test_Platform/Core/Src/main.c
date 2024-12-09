@@ -368,9 +368,19 @@ status_code_t cancel(void) {
 }
 
 status_code_t run_setpoint(input_t index, input_t profile) {
- // Retrieve the setpoint from the specified index and profile.
+  // Check argument range
+  if (profile < PROFILE_ARG_MIN || profile > PROFILE_ARG_MAX) {
+    return STATUS_ERR_ARG_OUT_OF_RANGE;
+  }
+  // Get setpoint pointer from index and profile arguments
   setpoint_t* setpoint = SETPOINT_ADDRESS(index, profile);
 
+  // Check if requested setpoint contains data
+  if (setpoint->x == FLASH_EMPTY && setpoint->y == FLASH_EMPTY && setpoint->speed == FLASH_EMPTY) {
+    return STATUS_ERR_EMPTY_SETPOINT;
+  }
+
+  // Initialize setpoint for run state
   active_setpoint.x = degtoccr(setpoint->x) + PULSE_WIDTH_OFFSET_X;
   active_setpoint.y = degtoccr(setpoint->y) + PULSE_WIDTH_OFFSET_Y;
   active_setpoint.speed = setpoint->speed;
@@ -380,16 +390,28 @@ status_code_t run_setpoint(input_t index, input_t profile) {
 }
 
 status_code_t run_profile(input_t profile) {
+  // Check argument range
+  if (profile < PROFILE_ARG_MIN || profile > PROFILE_ARG_MAX) {
+    return STATUS_ERR_ARG_OUT_OF_RANGE;
+  }
+  // Get setpoint pointer from index and profile arguments
+  setpoint_t* setpoint = PROFILE_ADDRESS(profile);
+
+  // Check if requested setpoint contains data
+  if (setpoint->x == FLASH_EMPTY && setpoint->y == FLASH_EMPTY && setpoint->speed == FLASH_EMPTY) {
+    return STATUS_ERR_EMPTY_SETPOINT;
+  }
+
+  // Initialize setpoint for run state
   active_setpoint.profile = profile;
+
   next_state_e = RUN_PROFILE_STATE;
   return STATUS_OK;
 }
 
-
 status_code_t get_setpoint(input_t index, input_t profile) {
-  // Check argument range 
-  if ((profile < PROFILE_ARG_MIN || profile > PROFILE_ARG_MAX) ||
-    (index < INDEX_ARG_MIN || index > INDEX_ARG_MAX)) {
+  // Check argument range
+  if (profile < PROFILE_ARG_MIN || profile > PROFILE_ARG_MAX) {
     return STATUS_ERR_ARG_OUT_OF_RANGE;
   }
   // Get setpoint pointer from index and profile arguments
@@ -449,8 +471,7 @@ status_code_t add_setpoint(input_t x, input_t y, input_t speed, input_t profile)
 
 status_code_t remove_setpoint(input_t index, input_t profile) {
   // Check argument range
-  if ((profile < PROFILE_ARG_MIN || profile > PROFILE_ARG_MAX) ||
-    (index < INDEX_ARG_MIN || index > INDEX_ARG_MAX)) {
+  if (profile < PROFILE_ARG_MIN || profile > PROFILE_ARG_MAX) {
     return STATUS_ERR_ARG_OUT_OF_RANGE;
     }
   // Check if requested setpoint contains data

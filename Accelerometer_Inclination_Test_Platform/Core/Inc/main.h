@@ -476,8 +476,6 @@ status_code_t test_led(void);
 // Public Function Argument Limits
 #define PROFILE_ARG_MIN 0U
 #define PROFILE_ARG_MAX 10U
-#define INDEX_ARG_MIN 0U
-#define INDEX_ARG_MAX 999U
 
 // Flash Memory
 #define FLASH_SECTOR_NUMBER FLASH_SECTOR_6
