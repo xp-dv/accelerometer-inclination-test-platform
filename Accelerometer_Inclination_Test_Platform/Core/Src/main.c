@@ -461,6 +461,36 @@ void adxl_read(void) {
 }
 
 //* Instruction Functions
+/** 
+ * @defgroup ImmediateFunctions Immediate Functions
+ * Functions for immediate platform movement
+ * @{
+ * 
+ */
+
+/**
+ * @brief Sets the system's active setpoint and transitions to the movement state.
+ * 
+ * @ingroup ImmediateFunctions
+ * This function updates the system's active setpoint with the target X and Y coordinates
+ * and the desired movement speed, after validating that the inputs are within the allowed
+ * ranges. It also transitions the system to the state required for executing the movement.
+ * 
+ * @param x The target position for the X-axis in degrees. Must be within [ANGLE_INPUT_MIN, ANGLE_INPUT_MAX].
+ * @param y The target position for the Y-axis in degrees. Must be within [ANGLE_INPUT_MIN, ANGLE_INPUT_MAX].
+ * @param speed The speed of the movement. Must be within [SPEED_MIN, SPEED_MAX].
+ * 
+ * @return status_code_t 
+ *         - STATUS_OK: If the setpoint is updated successfully and the system transitions to the movement state.
+ *         - STATUS_ERR_ARG_OUT_OF_RANGE: If any of the input arguments are out of the allowed range.
+ * 
+ * @details
+ * The X and Y input values are converted from degrees to corresponding pulse-width
+ * modulation values using the `degtoccr()` function and are adjusted by specific offsets
+ * (`PULSE_WIDTH_OFFSET_X` and `PULSE_WIDTH_OFFSET_Y`) to account for system calibration.
+ * If any input parameter is out of range, the function returns an error and does not update the setpoint.
+ * On success, the function transitions the system state to `RUN_SETPOINT_STATE`.
+ */
 status_code_t move(input_t x, input_t y, input_t speed) {
   // Check argument range
   if ((x < ANGLE_INPUT_MIN || x > ANGLE_INPUT_MAX) ||
@@ -480,30 +510,20 @@ status_code_t move(input_t x, input_t y, input_t speed) {
   next_state_e = RUN_SETPOINT_STATE;
   return STATUS_OK;
 }
-
-status_code_t run_setpoint(input_t index, input_t profile) {
-  // TODO: Allows the user to recall a setpoint out of a specific profile instead of remembering/storing it for move().
-  setpoint_t* setpoint = SETPOINT_ADDRESS(index, profile);
-  active_setpoint.x = degtoccr(setpoint->x) + PULSE_WIDTH_OFFSET_X;
-  active_setpoint.y = degtoccr(setpoint->y) + PULSE_WIDTH_OFFSET_Y;
-  active_setpoint.speed = setpoint->speed;
-  
-  // TODO: Take current position and set that as start point
-  // CCR_X = previous_setpoint.x;
-  // CCR_Y = previous_setpoint.y;
-
-  next_state_e = RUN_SETPOINT_STATE;
-  return STATUS_OK;
-}
-
-status_code_t run_profile(input_t profile) {
-  active_setpoint.profile = profile;
-  // CCR_X = previous_setpoint.x;
-  // CCR_Y = previous_setpoint.y;
-  next_state_e = RUN_PROFILE_STATE;
-  return STATUS_OK;
-}
-
+/**
+ * @brief Stops all active platform operations and transitions to the idle state.
+ * 
+ * @ingroup ImmediateFunctions
+ * This function halts PWM signals for the specified channels to immediately stop
+ * power delivery to platforms or servos. It transitions the system to `IDLE_STATE`
+ * to indicate that operations are no longer active. 
+ * 
+ * @return status_code_t 
+ *         - STATUS_OK: If the stop operation completes successfully.
+ * 
+ * @note Designed to be used in case of emergency. Running this command will require for the device to be power-cycled for 
+ *       continued operation. 
+ */
 status_code_t stop(void) {
   /**
    * TODO:
@@ -521,13 +541,93 @@ status_code_t stop(void) {
   return STATUS_OK;
 }
 
+/**
+ * @brief Cancels the current operation and transitions the device to the home state.
+ * 
+ * @ingroup ImmediateFunctions
+ * This function resets the active setpoint to its initial state and transitions the 
+ * system to `HOME_STATE`, which just passes the idle state 
+ * 
+ * @return status_code_t 
+ *         - STATUS_OK: If the cancel operation completes successfully.
+ */
 status_code_t cancel(void) {
   active_setpoint.index = 0;
   // Escape RUN_STATE
   next_state_e = HOME_STATE;
   return STATUS_OK;
 }
+/** @} */ // end of Immediate Functions group
 
+
+
+/** 
+ * @defgroup RunCommands Run Commands
+ * Functions for immediate platform movement
+ * @{
+ * 
+ */
+
+/**
+ * @brief Configures the system to run a specific setpoint with a given profile.
+ * 
+ * @ingroup RunCommands
+ * This function retrieves the setpoint parameters (X, Y, and speed) from the specified 
+ * index and profile, converts the X and Y values to PWM signals, 
+ * and updates the active setpoint. It then transitions the system to the `RUN_SETPOINT_STATE`.
+ * 
+ * @param index The index of the desired setpoint in the setpoint array.
+ * @param profile The profile to use for the specified setpoint.
+ * 
+ * @return status_code_t 
+ *         - STATUS_OK: If the setpoint is successfully applied and the system transitions to `RUN_SETPOINT_STATE`.
+ */
+status_code_t run_setpoint(input_t index, input_t profile) {
+ // Retrieve the setpoint from the specified index and profile.
+  setpoint_t* setpoint = SETPOINT_ADDRESS(index, profile);
+
+  active_setpoint.x = degtoccr(setpoint->x) + PULSE_WIDTH_OFFSET_X;
+  active_setpoint.y = degtoccr(setpoint->y) + PULSE_WIDTH_OFFSET_Y;
+  active_setpoint.speed = setpoint->speed;
+  
+  next_state_e = RUN_SETPOINT_STATE;
+  return STATUS_OK;
+}
+/**
+ * @brief Configures the system to execute a specific profile.
+ * 
+ * @ingroup RunCommands
+ * This function sets the active profile and transitions the system
+ * to the `RUN_PROFILE_STATE`, preparing it for executing the associated setpoints.
+ * 
+ * @param profile The profile to be executed.
+ * 
+ * @return status_code_t 
+ *         - STATUS_OK: If the profile is successfully set, and the system transitions to `RUN_PROFILE_STATE`.
+ */
+status_code_t run_profile(input_t profile) {
+  active_setpoint.profile = profile;
+  next_state_e = RUN_PROFILE_STATE;
+  return STATUS_OK;
+}
+/** @} */ // end of Run Commands group
+
+
+/**
+ * @brief Retrieves and transmits the setpoint data for a given index and profile.
+ * 
+ * This function checks if the provided index and profile are within valid ranges, retrieves
+ * the corresponding setpoint data, and transmits the setpoint's X, Y, and speed values over UART.
+ * If the requested setpoint is invalid or empty, the function returns an error status.
+ * 
+ * @param index The index of the desired setpoint.
+ * @param profile The profile associated with the setpoint.
+ * 
+ * @return status_code_t 
+ *         - STATUS_OK: If the setpoint is found, valid, and successfully transmitted.
+ *         - STATUS_ERR_ARG_OUT_OF_RANGE: If the index or profile is out of range.
+ *         - STATUS_ERR_INVALID_SETPOINT: If the requested setpoint contains invalid data (all fields empty).
+ */
 status_code_t get_setpoint(input_t index, input_t profile) {
   // Check argument range 
   if ((profile < PROFILE_ARG_MIN || profile > PROFILE_ARG_MAX) ||
@@ -549,7 +649,25 @@ status_code_t get_setpoint(input_t index, input_t profile) {
 
   return STATUS_OK;
 }
-
+/**
+ * @brief Adds a new setpoint to the specified profile.
+ * 
+ * This function checks if the provided arguments are within valid ranges, searches for an empty 
+ * slot in the profile to store the new setpoint, and writes the setpoint data (X, Y, and speed) 
+ * to flash memory. If the profile is full or if there is an issue with writing to flash, the function 
+ * returns an error.
+ * 
+ * @param x The X coordinate of the setpoint (in degrees).
+ * @param y The Y coordinate of the setpoint (in degrees).
+ * @param speed The speed for the setpoint (in valid range).
+ * @param profile The profile to which the setpoint will be added.
+ * 
+ * @return status_code_t 
+ *         - STATUS_OK: If the setpoint is successfully added to the profile.
+ *         - STATUS_ERR_ARG_OUT_OF_RANGE: If any argument is out of the valid range.
+ *         - STATUS_ERR_PROFILE_FULL: If the profile does not have space for more setpoints.
+ *         - STATUS_ERR_FLASH_WRITE_FAILED: If there is an error while writing to flash memory.
+ */
 status_code_t add_setpoint(input_t x, input_t y, input_t speed, input_t profile) {
   // Check argument range
   if ((profile < PROFILE_ARG_MIN || profile > PROFILE_ARG_MAX) ||
@@ -588,7 +706,22 @@ status_code_t add_setpoint(input_t x, input_t y, input_t speed, input_t profile)
 
   return STATUS_OK;
 }
-
+/**
+ * @brief Removes a setpoint from the specified profile 
+ * 
+ * This function checks if the provided arguments are within valid ranges, ensures the specified 
+ * setpoint exists, and then removes the setpoint by copying the remaining setpoints into RAM, 
+ * clearing the old setpoints from flash, and writing the modified setpoints back into flash memory.
+ * 
+ * @param index The index of the setpoint to be removed.
+ * @param profile The motion profile from which the setpoint will be removed.
+ * 
+ * @return status_code_t 
+ *         - STATUS_OK: If the setpoint is successfully removed and flash memory is updated.
+ *         - STATUS_ERR_ARG_OUT_OF_RANGE: If the provided index or profile is out of range.
+ *         - STATUS_ERR_INVALID_SETPOINT: If the specified setpoint is empty or invalid.
+ *         - STATUS_ERR_FLASH_WRITE_FAILED: If there is an error while writing to flash memory.
+ */
 status_code_t remove_setpoint(input_t index, input_t profile) {
   // Check argument range
   if ((profile < PROFILE_ARG_MIN || profile > PROFILE_ARG_MAX) ||
@@ -637,7 +770,20 @@ status_code_t remove_setpoint(input_t index, input_t profile) {
 
   return STATUS_OK;
 }
-
+/**
+ * @brief Retrieves the setpoints from a specified profile and transmits them via UART.
+ * 
+ * This function checks if the provided profile is within the valid range, then retrieves and transmits 
+ * the setpoints associated with the profile via UART. If the profile is empty or the setpoints 
+ * cannot be found, an error code is returned.
+ * 
+ * @param profile The profile number to retrieve the setpoints from.
+ * 
+ * @return status_code_t 
+ *         - STATUS_OK: If the profile and its setpoints are successfully retrieved and transmitted.
+ *         - STATUS_ERR_ARG_OUT_OF_RANGE: If the provided profile is out of range.
+ *         - STATUS_ERR_EMPTY_PROFILE: If the specified profile does not contain any data.
+ */
 status_code_t get_profile(input_t profile) {
   // Check argument range
   if (profile < PROFILE_ARG_MIN || profile > PROFILE_ARG_MAX) {
@@ -686,6 +832,24 @@ status_code_t get_profile(input_t profile) {
 
   return STATUS_OK;
 }
+
+
+/**
+ * @brief Clears the setpoints from a specific profile while preserving other profiles in flash memory.
+ * 
+ * This function checks if the provided profile is valid and contains data. It then clears all setpoints 
+ * from the specified profile while retaining the other profiles. The function performs a sector-by-sector 
+ * flash erase and writes the remaining profiles back into flash memory. If the flash write fails at any point, 
+ * an error is returned.
+ * 
+ * @param profile The profile number to clear.
+ * 
+ * @return status_code_t 
+ *         - STATUS_OK: If the profile is successfully cleared and remaining profiles are preserved.
+ *         - STATUS_ERR_ARG_OUT_OF_RANGE: If the provided profile is out of range.
+ *         - STATUS_ERR_EMPTY_PROFILE: If the specified profile is empty and cannot be cleared.
+ *         - STATUS_ERR_FLASH_WRITE_FAILED: If there was a failure during the flash write operation.
+ */
 
 status_code_t clear_profile(input_t profile) {
   // Check argument range
@@ -739,6 +903,21 @@ status_code_t clear_profile(input_t profile) {
   return STATUS_OK;
 }
 
+/**
+ * @defgroup TestFunctions Test Functions
+ * Functions for testing the system components such as servos, sensors, etc.
+ * @{
+ */
+
+/**
+ * @brief Test the servos by setting a test profile.
+ * 
+ * This function initializes a test profile for the servos and sets the state 
+ * to `RUN_TEST_STATE`. It prepares the system for running a test on the servos.
+ * 
+ * @return STATUS_OK on successful initiation of the test.
+ * @ingroup TestFunctions
+ */
 status_code_t test_servos(void) {
   // TODO: Change test printout to {X Y} format
   active_setpoint.profile = TEST_PROFILE;
@@ -747,6 +926,18 @@ status_code_t test_servos(void) {
   return STATUS_OK;
 }
 
+
+
+/**
+ * @brief Tests the ADXL sensor by reading its angle data and transmitting it via UART.
+ * 
+ * This function calls the `adxl_read` function to retrieve angle data from the ADXL sensor, formats the 
+ * data into a string, and transmits it via UART. The transmitted string includes the X and Y angle values 
+ * retrieved from the sensor.
+ * 
+ * @return status_code_t 
+ *         - STATUS_OK: If the test is successful and the data is transmitted.
+ */
 status_code_t test_adxl(void) {
   adxl_read();
   uint8_t test_msg[UART_TX_BUF_LEN];
@@ -756,6 +947,20 @@ status_code_t test_adxl(void) {
   return STATUS_OK;
 }
 
+/**
+ * @brief Tests the flash memory functionality by clearing, adding setpoints, and retrieving profiles.
+ * 
+ * @defgroup TestFunctions Test Functions
+ * This function iterates through all available profiles, performing the following steps for each profile:
+ * 1. Clears the profile using `clear_profile()`.
+ * 2. Adds 300 setpoints using `add_setpoint()` with a fixed argument based on the profile index.
+ * 3. Retrieves the profile using `get_profile()`.
+ * If any operation fails, the function returns the error status code.
+ * 
+ * @return status_code_t 
+ *         - STATUS_OK: If all operations for all profiles succeed.
+ *         - An error code: If any operation (clear, add, or get) fails.
+ */
 status_code_t test_flash(void) {
   status_code_t status;
   for (input_t profile = 0; profile <= PROFILE_ARG_MAX; profile++) {
@@ -783,8 +988,35 @@ status_code_t test_flash(void) {
 
   return STATUS_OK;
 }
+/** @} */ // end of TestFunctions group
+
 
 //* Event Handlers
+/**
+ * 
+ * /**
+ * @defgroup StateHandler State Handlers
+ * Functions for testing the system components such as servos, sensors, etc.
+ * @{
+ */
+
+ /**
+ * @brief Handles the startup state of the system, initializing hardware peripherals and configuring settings.
+ * 
+ * @ingroup StateHanlder
+ * This function performs the necessary steps to initialize the system's peripherals and set the initial state. The steps include:
+ * - Configuring PWM for motors (with specified frequency and pulse width).
+ * - Starting the PWM signals for motor control.
+ * - Setting initial positions for the motors by calling the `move` function.
+ * - Starting the timer interrupt for servo control.
+ * - Initializing the accelerometer for motion sensing.
+ * - Configuring the UART to receive data via interrupts.
+ * - Transmitting a startup message code over UART to indicate the device is ready.
+ * 
+ * @return system_state_t
+ *         - IDLE_STATE: The system transitions to the idle state after the startup operations are completed.
+ */
+
 system_state_t startup_state_handler(void) {
   //* PWM
   // Internal Clock (HCLK) = 100 MHz. If Prescaler = (100 - 1) & Max Timer Count = (20000 - 1),
@@ -818,6 +1050,38 @@ system_state_t home_state_handler(void) {
   return IDLE_STATE;
 }
 
+
+/**
+ * @brief Handles the idle state of the system.
+ * 
+ * @ingroup StateHanlder
+ * In the idle state, the system waits for a UART instruction to be received. Once the instruction is received
+ * and parsed, it is executed based on the command. The handler supports a wide range of instructions,
+ * including movement, stop, cancel, and testing commands. It also handles argument validation and echoes
+ * the status of the executed instruction back via UART.
+ *
+ * The instructions handled by this handler include:
+ * - MOVE_INSTRUCTION: Moves the system with specified arguments.
+ * - STOP_INSTRUCTION: Stops the system's current operation (system reboot needed to resume operations)
+ * - CANCEL_INSTRUCTION: Cancels the current operation.
+ * - RUN_SETPOINT_INSTRUCTION: Runs a specified setpoint.
+ * - RUN_PROFILE_INSTRUCTION: Runs a profile of setpoints.
+ * - GET_SETPOINT_INSTRUCTION: Retrieves a setpoint.
+ * - ADD_SETPOINT_INSTRUCTION: Adds a new setpoint.
+ * - REMOVE_SETPOINT_INSTRUCTION: Removes an existing setpoint.
+ * - GET_PROFILE_INSTRUCTION: Retrieves a profile.
+ * - CLEAR_PROFILE_INSTRUCTION: Clears a profile from memory.
+ * - TEST_SERVOS_INSTRUCTION: Tests the servo motors.
+ * - TEST_ADXL_INSTRUCTION: Tests the accelerometer (ADXL).
+ * - TEST_FLASH_INSTRUCTION: Tests the flash memory.
+ * - TEST_LED_INSTRUCTION: Toggles an LED for testing.
+ * - TEST_ECHO_INSTRUCTION: Echoes the received instruction back.
+ *
+ * Each instruction is validated for the correct number of arguments, and the corresponding action is performed.
+ * If an invalid instruction or incorrect argument count is encountered, an error status is echoed back.
+ *
+ * @return None
+ */
 void idle_state_handler(void) {
   static char uart_tx_buf[UART_TX_BUF_LEN];
   static char uart_rx_buf[UART_RX_BUF_LEN];
@@ -999,6 +1263,26 @@ void idle_state_handler(void) {
   }
 }
 
+/**
+ * @brief Handles the running of a setpoint.
+ * 
+ * @ingroup StateHanlder
+ * This function manages the movement of the system towards a setpoint defined by `active_setpoint.x` 
+ * and `active_setpoint.y`. It increments or decrements the pulse width values (`CCR_X` and `CCR_Y`) 
+ * in small steps, determined by the speed specified in `active_setpoint.speed`, until both the `CCR_X` 
+ * and `CCR_Y` values match the target setpoint values.
+ * 
+ * The speed of the movement is inversely related to the `active_setpoint.speed` value, meaning a higher 
+ * speed value results in a faster movement, while a lower speed results in slower movement. The system 
+ * prevents overshooting the setpoint by adjusting the pulse width values to exactly match the target when 
+ * it gets close enough.
+ * 
+ * Once both `CCR_X` and `CCR_Y` match the target setpoint values, the state transitions to `IDLE_STATE`.
+ * Otherwise, the function continues to increment or decrement the pulse width values in the next cycle.
+ * 
+ * @return The current state, which will be `RUN_SETPOINT_STATE` while the setpoint is being processed 
+ *         and `IDLE_STATE` once the setpoint is reached.
+ */
 system_state_t run_setpoint_state_handler(void) {
   if (CCR_X == active_setpoint.x && CCR_Y == active_setpoint.y) {
     return IDLE_STATE;
@@ -1036,6 +1320,25 @@ system_state_t run_setpoint_state_handler(void) {
   return RUN_SETPOINT_STATE;
 }
 
+/**
+ * @brief Handles the running of a profile by iterating through setpoints.
+ * 
+ * @ingroup StateHanlder
+ * This handler processes the current setpoint from a specified profile and moves the system towards 
+ * the target setpoint values. The setpoint data is retrieved from flash memory, and the system adjusts 
+ * the pulse width values (`CCR_X` and `CCR_Y`) to match the setpoint's `x` and `y` values. The movement 
+ * speed is determined by the `setpoint.speed` value. Once a setpoint is reached, the function waits 
+ * (via PROFILE_WAIT) and proceeds to the next setpoint in the profile.
+ * 
+ * If the requested setpoint contains invalid data (indicated by `FLASH_EMPTY` values), the function 
+ * returns to the idle state.
+ * 
+ * The function continues running through the profile until all setpoints are processed, at which point 
+ * the state transitions to `IDLE_STATE`.
+ * 
+ * @return The current state, which can be `RUN_PROFILE_STATE` if there are more setpoints to process, 
+ *         or `IDLE_STATE` when the profile has been fully processed or if no valid setpoints are found.
+ */
 system_state_t run_profile_state_handler(void) {
   HAL_Delay(STEP_DELAY);
   if (next_state_e == IDLE_STATE) {
@@ -1093,7 +1396,20 @@ system_state_t run_profile_state_handler(void) {
     return IDLE_STATE;
   }
 }
-
+/**
+ * @brief Handles the running for running a test on the servo
+ * 
+ * @ingroup StateHanlder
+ * 
+ * This handler manages the test state by controlling the movement of the servos 
+ * towards their target setpoints and updating the system accordingly. It checks 
+ * whether the setpoint has been reached and moves to the next setpoint if necessary.
+ * After completing the movement, it performs additional operations such as testing 
+ * the accelerometer and retrieving the next setpoint for the profile.
+ * 
+ * @return The current state, which can be `IDLE_STATE` if there are more setpoints to process, 
+ *         or `RUN_TEST_STATE` when the profile has been fully processed or if no valid setpoints are found.
+ */
 system_state_t run_test_state_handler(void) {
   HAL_Delay(STEP_DELAY);
   //char test_buf[UART_TX_BUF_LEN];
@@ -1157,6 +1473,8 @@ system_state_t run_test_state_handler(void) {
     return IDLE_STATE;
   }
 }
+
+/** @} */ // end of State Handler group
 /* USER CODE END 0 */
 
 /**
