@@ -107,7 +107,7 @@ void Error_Handler(void);
 
 // User-Facing Function Argument Limitations
 #define PROFILE_ARG_MIN 0U
-#define PROFILE_ARG_MAX 9U
+#define PROFILE_ARG_MAX 10U
 #define INDEX_ARG_MIN 0U
 #define INDEX_ARG_MAX 999U
 

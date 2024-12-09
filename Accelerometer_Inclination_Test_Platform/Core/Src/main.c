@@ -530,7 +530,7 @@ status_code_t cancel(void) {
 
 status_code_t get_setpoint(input_t index, input_t profile) {
   // Check argument range 
-  if (/*(profile < PROFILE_ARG_MIN || profile > PROFILE_ARG_MAX) ||*/
+  if ((profile < PROFILE_ARG_MIN || profile > PROFILE_ARG_MAX) ||
     (index < INDEX_ARG_MIN || index > INDEX_ARG_MAX)) {
     return STATUS_ERR_ARG_OUT_OF_RANGE;
   }
@@ -552,7 +552,7 @@ status_code_t get_setpoint(input_t index, input_t profile) {
 
 status_code_t add_setpoint(input_t x, input_t y, input_t speed, input_t profile) {
   // Check argument range
-  if (/*(profile < PROFILE_ARG_MIN || profile > PROFILE_ARG_MAX) ||*/
+  if ((profile < PROFILE_ARG_MIN || profile > PROFILE_ARG_MAX) ||
       (x < ANGLE_INPUT_MIN || x > ANGLE_INPUT_MAX) ||
       (y < ANGLE_INPUT_MIN || y > ANGLE_INPUT_MAX) ||
       (speed < SPEED_MIN || speed > SPEED_MAX)) {
@@ -640,9 +640,9 @@ status_code_t remove_setpoint(input_t index, input_t profile) {
 
 status_code_t get_profile(input_t profile) {
   // Check argument range
-  // if (profile < PROFILE_ARG_MIN || profile > PROFILE_ARG_MAX) {
-  //   return  STATUS_ERR_ARG_OUT_OF_RANGE; // Return an error code for invalid profile
-  // }
+  if (profile < PROFILE_ARG_MIN || profile > PROFILE_ARG_MAX) {
+    return STATUS_ERR_ARG_OUT_OF_RANGE; // Return an error code for invalid profile
+  }
 
   // Get setpoint pointer from index and profile arguments
   setpoint_t* setpoint = PROFILE_ADDRESS(profile);
