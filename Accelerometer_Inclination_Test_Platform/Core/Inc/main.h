@@ -512,7 +512,7 @@ status_code_t test_led(void);
 #define SPEED_MIN 1U
 #define SPEED_MAX 10U
 #define STEP_DELAY 100U // ms
-#define PROFILE_WAIT 500U // ms
+#define PROFILE_WAIT 750U // ms
 #define TEST_PROFILE 10U 
 
 #define PULSE_WIDTH_RANGE (PULSE_WIDTH_MAX - PULSE_WIDTH_MIN)

@@ -636,11 +636,11 @@ status_code_t test_adxl(void) {
 
 status_code_t test_flash(void) {
   status_code_t status;
-  for (input_t profile = 0; profile <= PROFILE_ARG_MAX; profile++) {
-    status = clear_profile(profile);
-    if (status != STATUS_OK) {
-      return status;
-    }
+  for (uint8_t i = 0; i < PROFILE_ARG_MAX; i++) {
+    (void)clear_profile(i);
+  }
+
+  for (input_t profile = 0; profile < PROFILE_ARG_MAX; profile++) {
 
     uint16_t arg1 = profile; // Set the first argument as the profile index + 1
     uint16_t arg2 = profile; // Set the second argument as the profile index + 1
