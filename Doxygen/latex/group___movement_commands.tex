@@ -1,0 +1,143 @@
+\doxysection{Movement Commands}
+\hypertarget{group___movement_commands}{}\label{group___movement_commands}\index{Movement Commands@{Movement Commands}}
+
+
+Functions for immediate platform movement  
+
+
+\doxysubsubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} \mbox{\hyperlink{group___movement_commands_gaf123ee62e0a53cfa2b3aa16302f3c273}{move}} (\mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}} x, \mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}} y, \mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}} speed)
+\begin{DoxyCompactList}\small\item\em Sets the system\textquotesingle{}s active setpoint and transitions to the movement state. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} \mbox{\hyperlink{group___movement_commands_gae9d98de81e95024d58ca3c6fa4256470}{stop}} (void)
+\begin{DoxyCompactList}\small\item\em Stops all active platform operations and transitions to the idle state. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} \mbox{\hyperlink{group___movement_commands_ga56392c38514aa5c4a85ab57f1ca90fba}{cancel}} (void)
+\begin{DoxyCompactList}\small\item\em Cancels the current operation and transitions the device to the home state. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} \mbox{\hyperlink{group___movement_commands_ga12fb3989e2e79aa3ceb95af73ed14170}{run\+\_\+setpoint}} (\mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}} index, \mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}} profile)
+\begin{DoxyCompactList}\small\item\em Configures the system to run a specific setpoint with a given profile. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} \mbox{\hyperlink{group___movement_commands_gacd7e01ede64303f7090ff6a193fa8f75}{run\+\_\+profile}} (\mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}} profile)
+\begin{DoxyCompactList}\small\item\em Configures the system to execute a specific profile. \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Functions for immediate platform movement 
+
+
+
+\doxysubsection{Function Documentation}
+\Hypertarget{group___movement_commands_ga56392c38514aa5c4a85ab57f1ca90fba}\index{Movement Commands@{Movement Commands}!cancel@{cancel}}
+\index{cancel@{cancel}!Movement Commands@{Movement Commands}}
+\doxysubsubsection{\texorpdfstring{cancel()}{cancel()}}
+{\footnotesize\ttfamily \label{group___movement_commands_ga56392c38514aa5c4a85ab57f1ca90fba} 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} cancel (\begin{DoxyParamCaption}\item[{void}]{}{}\end{DoxyParamCaption})}
+
+
+
+Cancels the current operation and transitions the device to the home state. 
+
+This function resets the active setpoint to its initial state and transitions the system to {\ttfamily HOME\+\_\+\+STATE}, which just passes the idle state
+
+\begin{DoxyReturn}{Returns}
+status\+\_\+code\+\_\+t
+\begin{DoxyItemize}
+\item STATUS\+\_\+\+OK\+: If the cancel operation completes successfully. 
+\end{DoxyItemize}
+\end{DoxyReturn}
+\Hypertarget{group___movement_commands_gaf123ee62e0a53cfa2b3aa16302f3c273}\index{Movement Commands@{Movement Commands}!move@{move}}
+\index{move@{move}!Movement Commands@{Movement Commands}}
+\doxysubsubsection{\texorpdfstring{move()}{move()}}
+{\footnotesize\ttfamily \label{group___movement_commands_gaf123ee62e0a53cfa2b3aa16302f3c273} 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} move (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}}}]{x}{, }\item[{\mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}}}]{y}{, }\item[{\mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}}}]{speed}{}\end{DoxyParamCaption})}
+
+
+
+Sets the system\textquotesingle{}s active setpoint and transitions to the movement state. 
+
+This function updates the system\textquotesingle{}s active setpoint with the target X and Y coordinates and the desired movement speed, after validating that the inputs are within the allowed ranges. It also transitions the system to the state required for executing the movement.
+
+
+\begin{DoxyParams}{Parameters}
+{\em x} & The target position for the X-\/axis in degrees. Must be within \mbox{[}ANGLE\+\_\+\+INPUT\+\_\+\+MIN, ANGLE\+\_\+\+INPUT\+\_\+\+MAX\mbox{]}. \\
+\hline
+{\em y} & The target position for the Y-\/axis in degrees. Must be within \mbox{[}ANGLE\+\_\+\+INPUT\+\_\+\+MIN, ANGLE\+\_\+\+INPUT\+\_\+\+MAX\mbox{]}. \\
+\hline
+{\em speed} & The speed of the movement. Must be within \mbox{[}SPEED\+\_\+\+MIN, SPEED\+\_\+\+MAX\mbox{]}.\\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+status\+\_\+code\+\_\+t
+\begin{DoxyItemize}
+\item STATUS\+\_\+\+OK\+: If the setpoint is updated successfully and the system transitions to the movement state.
+\item STATUS\+\_\+\+ERR\+\_\+\+ARG\+\_\+\+OUT\+\_\+\+OF\+\_\+\+RANGE\+: If any of the input arguments are out of the allowed range.
+\end{DoxyItemize}
+\end{DoxyReturn}
+The X and Y input values are converted from degrees to corresponding pulse-\/width modulation values using the {\ttfamily \doxylink{main_8c_ad4df14aff231b179400f4f7abe966f4c}{degtoccr()}} function and are adjusted by specific offsets ({\ttfamily PULSE\+\_\+\+WIDTH\+\_\+\+OFFSET\+\_\+X} and {\ttfamily PULSE\+\_\+\+WIDTH\+\_\+\+OFFSET\+\_\+Y}) to account for system calibration. If any input parameter is out of range, the function returns an error and does not update the setpoint. On success, the function transitions the system state to {\ttfamily RUN\+\_\+\+SETPOINT\+\_\+\+STATE}. \Hypertarget{group___movement_commands_gacd7e01ede64303f7090ff6a193fa8f75}\index{Movement Commands@{Movement Commands}!run\_profile@{run\_profile}}
+\index{run\_profile@{run\_profile}!Movement Commands@{Movement Commands}}
+\doxysubsubsection{\texorpdfstring{run\_profile()}{run\_profile()}}
+{\footnotesize\ttfamily \label{group___movement_commands_gacd7e01ede64303f7090ff6a193fa8f75} 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} run\+\_\+profile (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}}}]{profile}{}\end{DoxyParamCaption})}
+
+
+
+Configures the system to execute a specific profile. 
+
+This function sets the active profile and transitions the system to the {\ttfamily RUN\+\_\+\+PROFILE\+\_\+\+STATE}, preparing it for executing the associated setpoints.
+
+
+\begin{DoxyParams}{Parameters}
+{\em profile} & The profile to be executed.\\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+status\+\_\+code\+\_\+t
+\begin{DoxyItemize}
+\item STATUS\+\_\+\+OK\+: If the profile is successfully set, and the system transitions to {\ttfamily RUN\+\_\+\+PROFILE\+\_\+\+STATE}. 
+\end{DoxyItemize}
+\end{DoxyReturn}
+\Hypertarget{group___movement_commands_ga12fb3989e2e79aa3ceb95af73ed14170}\index{Movement Commands@{Movement Commands}!run\_setpoint@{run\_setpoint}}
+\index{run\_setpoint@{run\_setpoint}!Movement Commands@{Movement Commands}}
+\doxysubsubsection{\texorpdfstring{run\_setpoint()}{run\_setpoint()}}
+{\footnotesize\ttfamily \label{group___movement_commands_ga12fb3989e2e79aa3ceb95af73ed14170} 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} run\+\_\+setpoint (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}}}]{index}{, }\item[{\mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}}}]{profile}{}\end{DoxyParamCaption})}
+
+
+
+Configures the system to run a specific setpoint with a given profile. 
+
+This function retrieves the setpoint parameters (X, Y, and speed) from the specified index and profile, converts the X and Y values to PWM signals, and updates the active setpoint. It then transitions the system to the {\ttfamily RUN\+\_\+\+SETPOINT\+\_\+\+STATE}.
+
+
+\begin{DoxyParams}{Parameters}
+{\em index} & The index of the desired setpoint in the setpoint array. \\
+\hline
+{\em profile} & The profile to use for the specified setpoint.\\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+status\+\_\+code\+\_\+t
+\begin{DoxyItemize}
+\item STATUS\+\_\+\+OK\+: If the setpoint is successfully applied and the system transitions to {\ttfamily RUN\+\_\+\+SETPOINT\+\_\+\+STATE}. 
+\end{DoxyItemize}
+\end{DoxyReturn}
+\Hypertarget{group___movement_commands_gae9d98de81e95024d58ca3c6fa4256470}\index{Movement Commands@{Movement Commands}!stop@{stop}}
+\index{stop@{stop}!Movement Commands@{Movement Commands}}
+\doxysubsubsection{\texorpdfstring{stop()}{stop()}}
+{\footnotesize\ttfamily \label{group___movement_commands_gae9d98de81e95024d58ca3c6fa4256470} 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} stop (\begin{DoxyParamCaption}\item[{void}]{}{}\end{DoxyParamCaption})}
+
+
+
+Stops all active platform operations and transitions to the idle state. 
+
+This function halts PWM signals for the specified channels to immediately stop power delivery to platforms or servos. It transitions the system to {\ttfamily IDLE\+\_\+\+STATE} to indicate that operations are no longer active.
+
+\begin{DoxyReturn}{Returns}
+status\+\_\+code\+\_\+t
+\begin{DoxyItemize}
+\item STATUS\+\_\+\+OK\+: If the stop operation completes successfully.
+\end{DoxyItemize}
+\end{DoxyReturn}
+\begin{DoxyNote}{Note}
+Designed to be used in case of emergency. Running this command will require for the device to be power-\/cycled for continued operation. 
+\end{DoxyNote}

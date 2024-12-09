@@ -1,0 +1,47 @@
+\chapter{Command Codes and Descriptions}
+\hypertarget{_command__table}{}\label{_command__table}\index{Command Codes and Descriptions@{Command Codes and Descriptions}}
+\hypertarget{_status__codes_overview}{}\doxysection{\texorpdfstring{Overview}{Overview}}\label{_status__codes_overview}
+This table lists the available commands, their corresponding codes, arguments, and descriptions. These commands control the system\textquotesingle{}s motion, profiles, and tests.\hypertarget{_command__table_Command}{}\doxysection{\texorpdfstring{Syntax}{Syntax}}\label{_command__table_Command}
+Each instruction will follow the following format\+:
+
+{\ttfamily \{code\texorpdfstring{$\vert$}{|}arg1 arg2 ... argN\}}
+
+{\ttfamily \texorpdfstring{$<$}{<}code\texorpdfstring{$>$}{>}}\+: Required instruction code within the range (0-\/999). ~\newline
+ {\ttfamily \mbox{[}arg1\mbox{]}, \mbox{[}arg2\mbox{]}, \mbox{[}…\mbox{]}}\+: Optional arguments. The number of arguments and range of accepted values for each argument will depend on the instruction code given. ~\newline
+ \begin{quote}
+Ex\+: Some instructions have no arguments, others require multiple. \end{quote}
+{\ttfamily ‘\{’}\+: All instructions must begin with the start indicator. ~\newline
+ {\ttfamily ‘\}’}\+: All instructions must end with the end terminator. ~\newline
+ {\ttfamily ‘\texorpdfstring{$\vert$}{|}’}\+: The first argument (if applicable) must be separated from the instruction code with the instruction separator. ~\newline
+ {\ttfamily ‘ ’}\+: All subsequent arguments must be separated by the argument separator. ~\newline
+ All numbers must be represented in decimal.
+
+After an instruction is carried out, the received instruction will be echoed by the device in the following format\+:
+
+{\ttfamily \mbox{[}2-\/digit status code\mbox{]}\{\texorpdfstring{$<$}{<}code\texorpdfstring{$>$}{>}\texorpdfstring{$\vert$}{|}\mbox{[}arg\+\_\+1\mbox{]} \mbox{[}arg\+\_\+2\mbox{]} ... \mbox{[}arg\+\_\+n\mbox{]}\}}\hypertarget{_command__table_command_table}{}\doxysection{\texorpdfstring{Command Table}{Command Table}}\label{_command__table_command_table}
+\tabulinesep=1mm
+\begin{longtabu}spread 0pt [c]{*{4}{|X[-1]}|}
+\hline
+\PBS\centering \cellcolor{\tableheadbgcolor}\textbf{ Name   }&\PBS\centering \cellcolor{\tableheadbgcolor}\textbf{ Code   }&\PBS\centering \cellcolor{\tableheadbgcolor}\textbf{ Arguments   }&\PBS\centering \cellcolor{\tableheadbgcolor}\textbf{ Description    }\\\cline{1-4}
+\endfirsthead
+\hline
+\endfoot
+\hline
+\PBS\centering \cellcolor{\tableheadbgcolor}\textbf{ Name   }&\PBS\centering \cellcolor{\tableheadbgcolor}\textbf{ Code   }&\PBS\centering \cellcolor{\tableheadbgcolor}\textbf{ Arguments   }&\PBS\centering \cellcolor{\tableheadbgcolor}\textbf{ Description    }\\\cline{1-4}
+\endhead
+MOVE   &001   &x-\/ang, y-\/ang, speed   &Moves the platform to the input angle at the input speed    \\\cline{1-4}
+STOP   &002   &None   &Stops the platform from moving, will require reboot    \\\cline{1-4}
+CANCEL   &003   &None   &Cancels platform movement and returns to home position    \\\cline{1-4}
+RUN\+\_\+\+SETPOINT   &004   &Setpoint Index, Profile Index   &Moves the platform to a setpoint in the profile    \\\cline{1-4}
+RUN\+\_\+\+PROFILE   &005   &Profile Index   &Moves the platform sequentially through profile setpoints    \\\cline{1-4}
+GET\+\_\+\+SETPOINT   &006   &Setpoint Index, Profile Index   &Shows values of a setpoint in the profile    \\\cline{1-4}
+ADD\+\_\+\+SETPOINT   &007   &x-\/ang, y-\/ang, speed, Profile Index   &Adds a setpoint to the profile    \\\cline{1-4}
+REMOVE\+\_\+\+SETPOINT   &008   &Setpoint Index, Profile Index   &Removes a setpoint from the profile    \\\cline{1-4}
+GET\+\_\+\+PROFILE   &009   &Profile Index   &Shows values for all setpoints in the profile    \\\cline{1-4}
+CLEAR\+\_\+\+PROFILE   &010   &Profile Index   &Removes all setpoints from the profile    \\\cline{1-4}
+TEST\+\_\+\+SERVOS   &995   &None   &Moves the platform to preset setpoints    \\\cline{1-4}
+TEST\+\_\+\+ADXL   &996   &None   &Reads and prints accelerometer output    \\\cline{1-4}
+TEST\+\_\+\+FLASH   &997   &None   &Saves preset values into flash    \\\cline{1-4}
+TEST\+\_\+\+LED   &998   &None   &Toggles the onboard LED    \\\cline{1-4}
+TEST\+\_\+\+ECHO   &999   &None   &Displays command entered back to the user   \\\cline{1-4}
+\end{longtabu}

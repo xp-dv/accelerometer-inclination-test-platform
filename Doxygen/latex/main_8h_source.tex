@@ -1,0 +1,234 @@
+\doxysection{main.\+h}
+\hypertarget{main_8h_source}{}\label{main_8h_source}\index{Accelerometer\_Inclination\_Test\_Platform/Core/Inc/main.h@{Accelerometer\_Inclination\_Test\_Platform/Core/Inc/main.h}}
+\mbox{\hyperlink{main_8h}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ \textcolor{comment}{/*\ USER\ CODE\ BEGIN\ Header\ */}}
+\DoxyCodeLine{00092\ \textcolor{preprocessor}{\#pragma\ once}}
+\DoxyCodeLine{00093\ }
+\DoxyCodeLine{00094\ \textcolor{comment}{/*\ USER\ CODE\ END\ Header\ */}}
+\DoxyCodeLine{00095\ }
+\DoxyCodeLine{00096\ \textcolor{comment}{/*\ Define\ to\ prevent\ recursive\ inclusion\ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/*/}}
+\DoxyCodeLine{00097\ \textcolor{preprocessor}{\#ifndef\ \_\_MAIN\_H}}
+\DoxyCodeLine{00098\ \textcolor{preprocessor}{\#define\ \_\_MAIN\_H}}
+\DoxyCodeLine{00099\ }
+\DoxyCodeLine{00100\ \textcolor{preprocessor}{\#ifdef\ \_\_cplusplus}}
+\DoxyCodeLine{00101\ \textcolor{keyword}{extern}\ \textcolor{stringliteral}{"{}C"{}}\ \{}
+\DoxyCodeLine{00102\ \textcolor{preprocessor}{\#endif}}
+\DoxyCodeLine{00103\ }
+\DoxyCodeLine{00104\ \textcolor{comment}{/*\ Includes\ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/*/}}
+\DoxyCodeLine{00105\ \textcolor{preprocessor}{\#include\ "{}stm32f4xx\_hal.h"{}}}
+\DoxyCodeLine{00106\ }
+\DoxyCodeLine{00107\ \textcolor{comment}{/*\ Private\ includes\ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/*/}}
+\DoxyCodeLine{00108\ \textcolor{comment}{/*\ USER\ CODE\ BEGIN\ Includes\ */}}
+\DoxyCodeLine{00109\ }
+\DoxyCodeLine{00110\ \textcolor{comment}{/*\ USER\ CODE\ END\ Includes\ */}}
+\DoxyCodeLine{00111\ }
+\DoxyCodeLine{00112\ \textcolor{comment}{/*\ Exported\ types\ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/*/}}
+\DoxyCodeLine{00113\ \textcolor{comment}{/*\ USER\ CODE\ BEGIN\ ET\ */}}
+\DoxyCodeLine{00114\ }
+\DoxyCodeLine{00115\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{enum}\ \{}
+\DoxyCodeLine{00116\ \ \ \textcolor{comment}{//*\ General}}
+\DoxyCodeLine{00117\ \ \ \mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36a7e4a42e3b6dd63708c64cf3db6f69566}{STATUS\_OK}},}
+\DoxyCodeLine{00118\ \ \ \textcolor{comment}{//*\ Thrown\ by\ UART\ Callback}}
+\DoxyCodeLine{00119\ \ \ \mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36a91c32f1db4bb7b89a63e81967a253ea5}{STATUS\_ERR\_UART\_OF}},\ \textcolor{comment}{//\ UART\ Buffer\ Overflow}}
+\DoxyCodeLine{00120\ \ \ \textcolor{comment}{//*\ Thrown\ by\ instruction\ handler}}
+\DoxyCodeLine{00121\ \ \ \mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36ab22e411718f05418ab8ec7b63dca7251}{STATUS\_ERR\_NO\_INDICATOR}},}
+\DoxyCodeLine{00122\ \ \ \mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36a29848b9420b73932e87bdf8de1ed53ac}{STATUS\_ERR\_NO\_TERMINATOR}},}
+\DoxyCodeLine{00123\ \ \ \mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36a6cf3a39d4322f7cb61a43b52e41bf759}{STATUS\_ERR\_INVALID\_INSTRUCTION}},}
+\DoxyCodeLine{00124\ \ \ \mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36a9fe9012951c78bbf23b035195dd5411f}{STATUS\_ERR\_INSTRUCTION\_OUT\_OF\_RANGE}},}
+\DoxyCodeLine{00125\ \ \ \mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36a2d91c0b3465c540eef27789dc36516be}{STATUS\_ERR\_TOO\_MANY\_INSTRUCTIONS}},}
+\DoxyCodeLine{00126\ \ \ \mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36a8efea9475524da2563a7139958309872}{STATUS\_ERR\_INVALID\_ARG}},}
+\DoxyCodeLine{00127\ \ \ \mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36af4998362ae202b3c4049c039ed995b18}{STATUS\_ERR\_INVALID\_ARG\_COUNT}},}
+\DoxyCodeLine{00128\ \ \ \mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36a5d0eddf4db800af15da1f43c42b0f879}{STATUS\_ERR\_TOO\_MANY\_ARGS}},}
+\DoxyCodeLine{00129\ \ \ \mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36a7d86766bbb2fa5907fc80d1b018a0aac}{STATUS\_ERR\_ARG\_OUT\_OF\_RANGE}},}
+\DoxyCodeLine{00130\ \ \ \textcolor{comment}{//*\ Thrown\ by\ user\ data\ functions}}
+\DoxyCodeLine{00131\ \ \ \mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36a8f51ac3e6c29962bc978c1a0aecd8270}{STATUS\_ERR\_EMPTY\_SETPOINT}},}
+\DoxyCodeLine{00132\ \ \ \mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36a94d1e885694ff6029c244f7bb84f08bd}{STATUS\_ERR\_PROFILE\_FULL}},}
+\DoxyCodeLine{00133\ \ \ \mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36a799a65d2923cba19d67bbeda0bc16301}{STATUS\_ERR\_EMPTY\_PROFILE}},}
+\DoxyCodeLine{00134\ \ \ \mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36ac6958e1a42cd38e70836760685c69e6f}{STATUS\_ERR\_FLASH\_WRITE\_FAILED}},}
+\DoxyCodeLine{00135\ \}\ \mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\_code\_t}};}
+\DoxyCodeLine{00136\ }
+\DoxyCodeLine{00137\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{enum}\ \{}
+\DoxyCodeLine{00138\ \ \ \textcolor{comment}{//\ Instruction\ Code\ 0\ =\ RESERVED}}
+\DoxyCodeLine{00139\ \ \ \textcolor{comment}{//\ Motion\ Commands}}
+\DoxyCodeLine{00140\ \ \ \mbox{\hyperlink{main_8h_a6e5c5ffa60bec1bad81b5d61dacb0101ab59b8eaf5013eccf7a95c70fcf5c05ee}{MOVE\_INSTRUCTION}}\ =\ 1,}
+\DoxyCodeLine{00141\ \ \ \mbox{\hyperlink{main_8h_a6e5c5ffa60bec1bad81b5d61dacb0101ae5ca94e908f8aab986d4f50b4e541f41}{STOP\_INSTRUCTION}},}
+\DoxyCodeLine{00142\ \ \ \mbox{\hyperlink{main_8h_a6e5c5ffa60bec1bad81b5d61dacb0101ab6a4c36e0471f09cba4f9b40368c3943}{CANCEL\_INSTRUCTION}},}
+\DoxyCodeLine{00143\ \ \ \mbox{\hyperlink{main_8h_a6e5c5ffa60bec1bad81b5d61dacb0101a86472f8c683503ef3dc24090800e72bb}{RUN\_SETPOINT\_INSTRUCTION}},}
+\DoxyCodeLine{00144\ \ \ \mbox{\hyperlink{main_8h_a6e5c5ffa60bec1bad81b5d61dacb0101a44eb6766231dfb04204a126a5b11dade}{RUN\_PROFILE\_INSTRUCTION}},}
+\DoxyCodeLine{00145\ \ \ \textcolor{comment}{//\ Setpoint\ Commands}}
+\DoxyCodeLine{00146\ \ \ \mbox{\hyperlink{main_8h_a6e5c5ffa60bec1bad81b5d61dacb0101a109cd1645552434803bf5a79cc78ba1d}{GET\_SETPOINT\_INSTRUCTION}},}
+\DoxyCodeLine{00147\ \ \ \mbox{\hyperlink{main_8h_a6e5c5ffa60bec1bad81b5d61dacb0101a83722560540d69ed361d303c0e9ea7fa}{ADD\_SETPOINT\_INSTRUCTION}},}
+\DoxyCodeLine{00148\ \ \ \mbox{\hyperlink{main_8h_a6e5c5ffa60bec1bad81b5d61dacb0101a15ff2d764a1418cdf0d45fdb33406c7f}{REMOVE\_SETPOINT\_INSTRUCTION}},}
+\DoxyCodeLine{00149\ \ \ \textcolor{comment}{//\ Profile\ Commands}}
+\DoxyCodeLine{00150\ \ \ \mbox{\hyperlink{main_8h_a6e5c5ffa60bec1bad81b5d61dacb0101a0b9d5448219df7ea1903bb15edf1876a}{GET\_PROFILE\_INSTRUCTION}},}
+\DoxyCodeLine{00151\ \ \ \mbox{\hyperlink{main_8h_a6e5c5ffa60bec1bad81b5d61dacb0101a2569a5fca56717daf025238c744ef4a1}{CLEAR\_PROFILE\_INSTRUCTION}},}
+\DoxyCodeLine{00152\ \ \ \textcolor{comment}{//\ Test\ Commands}}
+\DoxyCodeLine{00153\ \ \ \mbox{\hyperlink{main_8h_a6e5c5ffa60bec1bad81b5d61dacb0101af26a892adc0cdb908e180c3d38c64e33}{TEST\_SERVOS\_INSTRUCTION}}\ =\ 995U,}
+\DoxyCodeLine{00154\ \ \ \mbox{\hyperlink{main_8h_a6e5c5ffa60bec1bad81b5d61dacb0101abb6a010e132e3c4399db35120376621d}{TEST\_ADXL\_INSTRUCTION}},}
+\DoxyCodeLine{00155\ \ \ \mbox{\hyperlink{main_8h_a6e5c5ffa60bec1bad81b5d61dacb0101a93fe4e9f0b6c9bb4b5aea4342fd31b56}{TEST\_FLASH\_INSTRUCTION}},}
+\DoxyCodeLine{00156\ \ \ \mbox{\hyperlink{main_8h_a6e5c5ffa60bec1bad81b5d61dacb0101a832956438e9b2dd2d6fabbee6da8bb01}{TEST\_LED\_INSTRUCTION}},}
+\DoxyCodeLine{00157\ \ \ \mbox{\hyperlink{main_8h_a6e5c5ffa60bec1bad81b5d61dacb0101a58ad642757707f508e5886749ea3048e}{TEST\_ECHO\_INSTRUCTION}},}
+\DoxyCodeLine{00158\ \}\ \mbox{\hyperlink{main_8h_a6e5c5ffa60bec1bad81b5d61dacb0101}{instruction\_code\_t}};}
+\DoxyCodeLine{00159\ }
+\DoxyCodeLine{00160\ \textcolor{keyword}{typedef}\ uint16\_t\ \mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\_t}};\ \textcolor{comment}{//\ Typedef\ set\ to\ fit\ numbers\ of\ size\ INPUT\_T\_MAX}}
+\DoxyCodeLine{00161\ }
+\DoxyCodeLine{00162\ \textcolor{comment}{/*\ USER\ CODE\ END\ ET\ */}}
+\DoxyCodeLine{00163\ }
+\DoxyCodeLine{00164\ \textcolor{comment}{/*\ Exported\ constants\ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/*/}}
+\DoxyCodeLine{00165\ \textcolor{comment}{/*\ USER\ CODE\ BEGIN\ EC\ */}}
+\DoxyCodeLine{00166\ }
+\DoxyCodeLine{00167\ \textcolor{comment}{/*\ USER\ CODE\ END\ EC\ */}}
+\DoxyCodeLine{00168\ }
+\DoxyCodeLine{00169\ \textcolor{comment}{/*\ Exported\ macro\ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/*/}}
+\DoxyCodeLine{00170\ \textcolor{comment}{/*\ USER\ CODE\ BEGIN\ EM\ */}}
+\DoxyCodeLine{00171\ }
+\DoxyCodeLine{00172\ \textcolor{comment}{/*\ USER\ CODE\ END\ EM\ */}}
+\DoxyCodeLine{00173\ }
+\DoxyCodeLine{00174\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{main_8h_ae70bce6c39d0b570a7523b86738cec4b}{HAL\_TIM\_MspPostInit}}(TIM\_HandleTypeDef\ *htim);}
+\DoxyCodeLine{00175\ }
+\DoxyCodeLine{00176\ \textcolor{comment}{/*\ Exported\ functions\ prototypes\ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/*/}}
+\DoxyCodeLine{00177\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{main_8h_a1730ffe1e560465665eb47d9264826f9}{Error\_Handler}}(\textcolor{keywordtype}{void});}
+\DoxyCodeLine{00178\ }
+\DoxyCodeLine{00179\ \textcolor{comment}{/*\ USER\ CODE\ BEGIN\ EFP\ */}}
+\DoxyCodeLine{00180\ }
+\DoxyCodeLine{00181\ \textcolor{comment}{//*\ Instruction\ Function\ Prototypes}}
+\DoxyCodeLine{00182\ }
+\DoxyCodeLine{00212\ \mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\_code\_t}}\ \mbox{\hyperlink{group___movement_commands_gaf123ee62e0a53cfa2b3aa16302f3c273}{move}}(\mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\_t}}\ x,\ \mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\_t}}\ y,\ \mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\_t}}\ speed);}
+\DoxyCodeLine{00227\ \mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\_code\_t}}\ \mbox{\hyperlink{group___movement_commands_gae9d98de81e95024d58ca3c6fa4256470}{stop}}(\textcolor{keywordtype}{void});}
+\DoxyCodeLine{00238\ \mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\_code\_t}}\ \mbox{\hyperlink{group___movement_commands_ga56392c38514aa5c4a85ab57f1ca90fba}{cancel}}(\textcolor{keywordtype}{void});}
+\DoxyCodeLine{00253\ \mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\_code\_t}}\ \mbox{\hyperlink{group___movement_commands_ga12fb3989e2e79aa3ceb95af73ed14170}{run\_setpoint}}(\mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\_t}}\ index,\ \mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\_t}}\ profile);}
+\DoxyCodeLine{00266\ \mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\_code\_t}}\ \mbox{\hyperlink{group___movement_commands_gacd7e01ede64303f7090ff6a193fa8f75}{run\_profile}}(\mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\_t}}\ profile);}
+\DoxyCodeLine{00267\ }
+\DoxyCodeLine{00268\ \ \textcolor{comment}{//\ end\ of\ Movement\ Commands\ group}}
+\DoxyCodeLine{00269\ }
+\DoxyCodeLine{00292\ \mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\_code\_t}}\ \mbox{\hyperlink{group___edit_profile_commands_ga322ec4569411791a7521a1b11e29ac73}{get\_setpoint}}(\mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\_t}}\ index,\ \mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\_t}}\ profile);}
+\DoxyCodeLine{00313\ \mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\_code\_t}}\ \mbox{\hyperlink{group___edit_profile_commands_ga4a81d78270560d5be287c6bafddee4d1}{add\_setpoint}}(\mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\_t}}\ x\_ang,\ \mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\_t}}\ y\_ang,\ \mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\_t}}\ speed,\ \mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\_t}}\ profile);}
+\DoxyCodeLine{00331\ \mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\_code\_t}}\ \mbox{\hyperlink{group___edit_profile_commands_ga94e811fe0303d836b3800d0222a5f898}{remove\_setpoint}}(\mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\_t}}\ index,\ \mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\_t}}\ profile);}
+\DoxyCodeLine{00349\ \mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\_code\_t}}\ \mbox{\hyperlink{group___edit_profile_commands_ga3e5c238fdb955f78994ede5f1d0e967d}{get\_profile}}(\mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\_t}}\ profile);}
+\DoxyCodeLine{00350\ }
+\DoxyCodeLine{00351\ \ \textcolor{comment}{//\ end\ of\ Edit\ Profile\ Commands\ group}}
+\DoxyCodeLine{00352\ }
+\DoxyCodeLine{00370\ \mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\_code\_t}}\ \mbox{\hyperlink{group___edit_profile_commands_gafae2468a19776954238d079912c02928}{clear\_profile}}(\mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\_t}}\ profile);}
+\DoxyCodeLine{00371\ }
+\DoxyCodeLine{00387\ \mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\_code\_t}}\ \mbox{\hyperlink{group___test_functions_gaced4a912d06318b1f66ef100ce0de380}{test\_servos}}(\textcolor{keywordtype}{void});}
+\DoxyCodeLine{00399\ \mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\_code\_t}}\ \mbox{\hyperlink{group___test_functions_ga3f414bbf7709f42ac18cff3caa211fac}{test\_adxl}}(\textcolor{keywordtype}{void});}
+\DoxyCodeLine{00414\ \mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\_code\_t}}\ \mbox{\hyperlink{group___test_functions_ga52f4158c4c898c8f2f789471df8d0c18}{test\_flash}}(\textcolor{keywordtype}{void});}
+\DoxyCodeLine{00425\ \mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\_code\_t}}\ \mbox{\hyperlink{group___test_functions_gaf6c98d781be5d81b7c94cbb91d9b1d1d}{test\_led}}(\textcolor{keywordtype}{void});}
+\DoxyCodeLine{00426\ }
+\DoxyCodeLine{00427\ \ \textcolor{comment}{//\ end\ of\ TestFunctions\ group}}
+\DoxyCodeLine{00428\ }
+\DoxyCodeLine{00429\ \textcolor{comment}{/*\ USER\ CODE\ END\ EFP\ */}}
+\DoxyCodeLine{00430\ }
+\DoxyCodeLine{00431\ \textcolor{comment}{/*\ Private\ defines\ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/*/}}
+\DoxyCodeLine{00432\ \textcolor{preprocessor}{\#define\ BAUD\_RATE\ 38400}}
+\DoxyCodeLine{00433\ \textcolor{preprocessor}{\#define\ B1\_Pin\ GPIO\_PIN\_13}}
+\DoxyCodeLine{00434\ \textcolor{preprocessor}{\#define\ B1\_GPIO\_Port\ GPIOC}}
+\DoxyCodeLine{00435\ \textcolor{preprocessor}{\#define\ PWM\_X\_Pin\ GPIO\_PIN\_0}}
+\DoxyCodeLine{00436\ \textcolor{preprocessor}{\#define\ PWM\_X\_GPIO\_Port\ GPIOA}}
+\DoxyCodeLine{00437\ \textcolor{preprocessor}{\#define\ PWM\_Y\_Pin\ GPIO\_PIN\_1}}
+\DoxyCodeLine{00438\ \textcolor{preprocessor}{\#define\ PWM\_Y\_GPIO\_Port\ GPIOA}}
+\DoxyCodeLine{00439\ \textcolor{preprocessor}{\#define\ LD2\_Pin\ GPIO\_PIN\_5}}
+\DoxyCodeLine{00440\ \textcolor{preprocessor}{\#define\ LD2\_GPIO\_Port\ GPIOA}}
+\DoxyCodeLine{00441\ \textcolor{preprocessor}{\#define\ ADXL\_CS\_Pin\ GPIO\_PIN\_10}}
+\DoxyCodeLine{00442\ \textcolor{preprocessor}{\#define\ ADXL\_CS\_GPIO\_Port\ GPIOB}}
+\DoxyCodeLine{00443\ \textcolor{preprocessor}{\#define\ TMS\_Pin\ GPIO\_PIN\_13}}
+\DoxyCodeLine{00444\ \textcolor{preprocessor}{\#define\ TMS\_GPIO\_Port\ GPIOA}}
+\DoxyCodeLine{00445\ \textcolor{preprocessor}{\#define\ TCK\_Pin\ GPIO\_PIN\_14}}
+\DoxyCodeLine{00446\ \textcolor{preprocessor}{\#define\ TCK\_GPIO\_Port\ GPIOA}}
+\DoxyCodeLine{00447\ \textcolor{preprocessor}{\#define\ ADXL\_SCL\_Pin\ GPIO\_PIN\_3}}
+\DoxyCodeLine{00448\ \textcolor{preprocessor}{\#define\ ADXL\_SCL\_GPIO\_Port\ GPIOB}}
+\DoxyCodeLine{00449\ \textcolor{preprocessor}{\#define\ ADXL\_SDO\_Pin\ GPIO\_PIN\_4}}
+\DoxyCodeLine{00450\ \textcolor{preprocessor}{\#define\ ADXL\_SDO\_GPIO\_Port\ GPIOB}}
+\DoxyCodeLine{00451\ \textcolor{preprocessor}{\#define\ ADXL\_SDA\_Pin\ GPIO\_PIN\_5}}
+\DoxyCodeLine{00452\ \textcolor{preprocessor}{\#define\ ADXL\_SDA\_GPIO\_Port\ GPIOB}}
+\DoxyCodeLine{00453\ }
+\DoxyCodeLine{00454\ \textcolor{comment}{/*\ USER\ CODE\ BEGIN\ Private\ defines\ */}}
+\DoxyCodeLine{00455\ }
+\DoxyCodeLine{00456\ \textcolor{comment}{//\ Binary\ Manipulation}}
+\DoxyCodeLine{00457\ \textcolor{preprocessor}{\#define\ RESERVED\ 0U}}
+\DoxyCodeLine{00458\ \textcolor{preprocessor}{\#define\ BIT\_RESET\_MASK\ 0x00U}}
+\DoxyCodeLine{00459\ \textcolor{preprocessor}{\#define\ BIT\_0\_MASK\ 0x01U}}
+\DoxyCodeLine{00460\ \textcolor{preprocessor}{\#define\ BIT\_1\_MASK\ 0x02U}}
+\DoxyCodeLine{00461\ \textcolor{preprocessor}{\#define\ BIT\_2\_MASK\ 0x04U}}
+\DoxyCodeLine{00462\ \textcolor{preprocessor}{\#define\ BIT\_3\_MASK\ 0x08U}}
+\DoxyCodeLine{00463\ \textcolor{preprocessor}{\#define\ BIT\_4\_MASK\ 0x10U}}
+\DoxyCodeLine{00464\ \textcolor{preprocessor}{\#define\ BIT\_5\_MASK\ 0x20U}}
+\DoxyCodeLine{00465\ \textcolor{preprocessor}{\#define\ BIT\_6\_MASK\ 0x40U}}
+\DoxyCodeLine{00466\ \textcolor{preprocessor}{\#define\ BIT\_7\_MASK\ 0x80U}}
+\DoxyCodeLine{00467\ \textcolor{preprocessor}{\#define\ FLASH\_EMPTY\ 0xFFFFU}}
+\DoxyCodeLine{00468\ }
+\DoxyCodeLine{00469\ \textcolor{comment}{//\ User\ Input}}
+\DoxyCodeLine{00470\ \textcolor{preprocessor}{\#define\ INPUT\_T\_MAX\ 999U\ }\textcolor{comment}{//\ Max\ possible\ instruction\ code\ value}}
+\DoxyCodeLine{00471\ \textcolor{preprocessor}{\#define\ PROFILE\_LEN\ (INPUT\_T\_MAX\ +\ 1U)\ }\textcolor{comment}{//\ 1000\ setpoints\ per\ profile}}
+\DoxyCodeLine{00472\ \textcolor{preprocessor}{\#define\ INSTRUCTION\_MAX\_ARGS\ 4U\ }\textcolor{comment}{//\ Maximum\ user-\/enterable\ parameters\ per\ instruction}}
+\DoxyCodeLine{00473\ \textcolor{preprocessor}{\#define\ TOTAL\_PROFILES\ 11U\ }\textcolor{comment}{//\ User\ profiles\ 0-\/9\ +\ test\ servo\ profile\ 10}}
+\DoxyCodeLine{00474\ \textcolor{preprocessor}{\#define\ TOTAL\_SETPOINTS\ (TOTAL\_PROFILES\ *\ PROFILE\_LEN)}}
+\DoxyCodeLine{00475\ }
+\DoxyCodeLine{00476\ \textcolor{comment}{//\ Public\ Function\ Argument\ Limits}}
+\DoxyCodeLine{00477\ \textcolor{preprocessor}{\#define\ PROFILE\_ARG\_MIN\ 0U}}
+\DoxyCodeLine{00478\ \textcolor{preprocessor}{\#define\ PROFILE\_ARG\_MAX\ 10U}}
+\DoxyCodeLine{00479\ \textcolor{preprocessor}{\#define\ INDEX\_ARG\_MIN\ 0U}}
+\DoxyCodeLine{00480\ \textcolor{preprocessor}{\#define\ INDEX\_ARG\_MAX\ 999U}}
+\DoxyCodeLine{00481\ }
+\DoxyCodeLine{00482\ \textcolor{comment}{//\ Flash\ Memory}}
+\DoxyCodeLine{00483\ \textcolor{preprocessor}{\#define\ FLASH\_SECTOR\_NUMBER\ FLASH\_SECTOR\_6}}
+\DoxyCodeLine{00484\ \textcolor{preprocessor}{\#define\ FLASH\_SECTOR\_6\_BASE\ 0x08040000UL}}
+\DoxyCodeLine{00485\ \textcolor{preprocessor}{\#define\ PROFILE\_ADDRESS(profile)\ ((setpoint\_t*)(FLASH\_SECTOR\_6\_BASE\ +\ (sizeof(setpoint\_t)\ *\ PROFILE\_LEN\ *\ profile)))}}
+\DoxyCodeLine{00486\ \textcolor{preprocessor}{\#define\ SETPOINT\_ADDRESS(index,\ profile)\ ((setpoint\_t*)(FLASH\_SECTOR\_6\_BASE\ +\ (sizeof(setpoint\_t)\ *\ index)\ +\ (sizeof(setpoint\_t)\ *\ PROFILE\_LEN\ *\ profile)))}}
+\DoxyCodeLine{00487\ }
+\DoxyCodeLine{00488\ \textcolor{comment}{//\ ADXL\ Register\ Map}}
+\DoxyCodeLine{00489\ \textcolor{preprocessor}{\#define\ ADXL\_REG\_DEVID\ 0x00U\ }\textcolor{comment}{//\ Device\ ID}}
+\DoxyCodeLine{00490\ \textcolor{preprocessor}{\#define\ ADXL\_REG\_POWER\_CTL\ 0x2DU\ }\textcolor{comment}{//\ Power\ Mode\ Control}}
+\DoxyCodeLine{00491\ \textcolor{preprocessor}{\#define\ ADXL\_REG\_DATA\_FORMAT\ 0x31U\ }\textcolor{comment}{//\ Data\ Format}}
+\DoxyCodeLine{00492\ \textcolor{preprocessor}{\#define\ ADXL\_REG\_DATAX0\ 0x32U\ }\textcolor{comment}{//\ Data\ Format}}
+\DoxyCodeLine{00493\ }
+\DoxyCodeLine{00494\ \textcolor{comment}{//\ ADXL}}
+\DoxyCodeLine{00495\ \textcolor{preprocessor}{\#define\ ADXL\_ADDRESS\_SIZE\ 1\ }\textcolor{comment}{//\ Size\ of\ the\ ADXL\ address\ in\ bytes}}
+\DoxyCodeLine{00496\ \textcolor{preprocessor}{\#define\ ADXL\_DATA\_SIZE\ 6\ }\textcolor{comment}{//\ Size\ of\ the\ ADXL\ data\ register\ in\ bytes}}
+\DoxyCodeLine{00497\ \textcolor{preprocessor}{\#define\ ADXL\_TIMEOUT\ 100\ }\textcolor{comment}{//\ SPI\ Timeout\ in\ ms}}
+\DoxyCodeLine{00498\ \textcolor{preprocessor}{\#define\ ADXL\_SCALE\_FACTOR\ 0.00414}}
+\DoxyCodeLine{00499\ }
+\DoxyCodeLine{00500\ \textcolor{comment}{//\ UART}}
+\DoxyCodeLine{00501\ \textcolor{preprocessor}{\#define\ HUART\_PTR\ \&huart2}}
+\DoxyCodeLine{00502\ \textcolor{preprocessor}{\#define\ UART\_TX\_TIMEOUT\ 50\ }\textcolor{comment}{//\ ms}}
+\DoxyCodeLine{00503\ \textcolor{preprocessor}{\#define\ UART\_TX\_BUF\_LEN\ 128U}}
+\DoxyCodeLine{00504\ \textcolor{preprocessor}{\#define\ UART\_RX\_BUF\_LEN\ (UART\_TX\_BUF\_LEN\ -\/\ 6U)\ }\textcolor{comment}{//\ 6\ bytes\ is\ size\ of\ status\ code\ extension}}
+\DoxyCodeLine{00505\ }
+\DoxyCodeLine{00506\ \textcolor{comment}{//\ Servos}}
+\DoxyCodeLine{00507\ \textcolor{preprocessor}{\#define\ CCR\_X\ htim2.Instance-\/>CCR1}}
+\DoxyCodeLine{00508\ \textcolor{preprocessor}{\#define\ CCR\_Y\ htim2.Instance-\/>CCR2}}
+\DoxyCodeLine{00509\ \textcolor{preprocessor}{\#define\ ANGLE\_MIN\ 0}}
+\DoxyCodeLine{00510\ \textcolor{preprocessor}{\#define\ ANGLE\_MAX\ 180}}
+\DoxyCodeLine{00511\ \textcolor{preprocessor}{\#define\ ANGLE\_INPUT\_MIN\ 0}}
+\DoxyCodeLine{00512\ \textcolor{preprocessor}{\#define\ ANGLE\_INPUT\_MAX\ 180}}
+\DoxyCodeLine{00513\ \textcolor{preprocessor}{\#define\ ANGLE\_RANGE\ (ANGLE\_MAX\ -\/\ ANGLE\_MIN)}}
+\DoxyCodeLine{00514\ \textcolor{preprocessor}{\#define\ SPEED\_MIN\ 1U}}
+\DoxyCodeLine{00515\ \textcolor{preprocessor}{\#define\ SPEED\_MAX\ 10U}}
+\DoxyCodeLine{00516\ \textcolor{preprocessor}{\#define\ STEP\_DELAY\ 100U\ }\textcolor{comment}{//\ ms}}
+\DoxyCodeLine{00517\ \textcolor{preprocessor}{\#define\ PROFILE\_WAIT\ 500U\ }\textcolor{comment}{//\ ms}}
+\DoxyCodeLine{00518\ \textcolor{preprocessor}{\#define\ TEST\_PROFILE\ 10U\ }}
+\DoxyCodeLine{00519\ }
+\DoxyCodeLine{00520\ \textcolor{preprocessor}{\#define\ PULSE\_WIDTH\_RANGE\ (PULSE\_WIDTH\_MAX\ -\/\ PULSE\_WIDTH\_MIN)}}
+\DoxyCodeLine{00521\ \textcolor{preprocessor}{\#define\ PULSE\_WIDTH\_MIN\ 500\ }\textcolor{comment}{//\ us}}
+\DoxyCodeLine{00522\ \textcolor{preprocessor}{\#define\ PULSE\_WIDTH\_NEG\_90\ (PULSE\_WIDTH\_0\ -\/\ (PULSE\_WIDTH\_RANGE\ /\ 3))}}
+\DoxyCodeLine{00523\ \textcolor{preprocessor}{\#define\ PULSE\_WIDTH\_NEG\_45\ (PULSE\_WIDTH\_0\ -\/\ (PULSE\_WIDTH\_RANGE\ /\ 6))}}
+\DoxyCodeLine{00524\ \textcolor{preprocessor}{\#define\ PULSE\_WIDTH\_0\ ((PULSE\_WIDTH\_MAX\ +\ PULSE\_WIDTH\_MIN)\ /\ 2)}}
+\DoxyCodeLine{00525\ \textcolor{preprocessor}{\#define\ PULSE\_WIDTH\_POS\_45\ (PULSE\_WIDTH\_0\ +\ (PULSE\_WIDTH\_RANGE\ /\ 6))}}
+\DoxyCodeLine{00526\ \textcolor{preprocessor}{\#define\ PULSE\_WIDTH\_POS\_90\ (PULSE\_WIDTH\_0\ +\ (PULSE\_WIDTH\_RANGE\ /\ 3))}}
+\DoxyCodeLine{00527\ \textcolor{preprocessor}{\#define\ PULSE\_WIDTH\_MAX\ 2500\ }\textcolor{comment}{//\ us}}
+\DoxyCodeLine{00528\ \textcolor{preprocessor}{\#define\ PULSE\_WIDTH\_OFFSET\_X\ -\/15\ }\textcolor{comment}{//\ us}}
+\DoxyCodeLine{00529\ \textcolor{preprocessor}{\#define\ PULSE\_WIDTH\_OFFSET\_Y\ -\/25\ }\textcolor{comment}{//\ us}}
+\DoxyCodeLine{00530\ }
+\DoxyCodeLine{00531\ \textcolor{comment}{//\ Misc}}
+\DoxyCodeLine{00532\ \textcolor{preprocessor}{\#define\ STARTUP\_DELAY\ 2000}}
+\DoxyCodeLine{00533\ }
+\DoxyCodeLine{00534\ \textcolor{comment}{/*\ USER\ CODE\ END\ Private\ defines\ */}}
+\DoxyCodeLine{00535\ }
+\DoxyCodeLine{00536\ \textcolor{preprocessor}{\#ifdef\ \_\_cplusplus}}
+\DoxyCodeLine{00537\ \}}
+\DoxyCodeLine{00538\ \textcolor{preprocessor}{\#endif}}
+\DoxyCodeLine{00539\ }
+\DoxyCodeLine{00540\ \textcolor{preprocessor}{\#endif\ }\textcolor{comment}{/*\ \_\_MAIN\_H\ */}\textcolor{preprocessor}{}}
+
+\end{DoxyCode}

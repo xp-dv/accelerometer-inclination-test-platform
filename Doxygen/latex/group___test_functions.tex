@@ -1,0 +1,103 @@
+\doxysection{Test Functions}
+\hypertarget{group___test_functions}{}\label{group___test_functions}\index{Test Functions@{Test Functions}}
+
+
+Functions for testing the system components such as servos, sensors, etc.  
+
+
+\doxysubsubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} \mbox{\hyperlink{group___test_functions_gaced4a912d06318b1f66ef100ce0de380}{test\+\_\+servos}} (void)
+\begin{DoxyCompactList}\small\item\em Test the servos by setting a test profile. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} \mbox{\hyperlink{group___test_functions_ga3f414bbf7709f42ac18cff3caa211fac}{test\+\_\+adxl}} (void)
+\begin{DoxyCompactList}\small\item\em Tests the ADXL sensor by reading its angle data and transmitting it via UART. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} \mbox{\hyperlink{group___test_functions_ga52f4158c4c898c8f2f789471df8d0c18}{test\+\_\+flash}} (void)
+\item 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} \mbox{\hyperlink{group___test_functions_gaf6c98d781be5d81b7c94cbb91d9b1d1d}{test\+\_\+led}} (void)
+\begin{DoxyCompactList}\small\item\em Toggles the onboard green LED. \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Functions for testing the system components such as servos, sensors, etc. 
+
+Tests the flash memory functionality by clearing, adding setpoints, and retrieving profiles.
+
+This function iterates through all available profiles, performing the following steps for each profile\+:
+\begin{DoxyEnumerate}
+\item Clears the profile using {\ttfamily \doxylink{group___edit_profile_commands_gafae2468a19776954238d079912c02928}{clear\+\_\+profile()}}.
+\item Adds 300 setpoints using {\ttfamily \doxylink{group___edit_profile_commands_ga4a81d78270560d5be287c6bafddee4d1}{add\+\_\+setpoint()}} with a fixed argument based on the profile index.
+\item Retrieves the profile using {\ttfamily \doxylink{group___edit_profile_commands_ga3e5c238fdb955f78994ede5f1d0e967d}{get\+\_\+profile()}}. If any operation fails, the function returns the error status code.
+\end{DoxyEnumerate}
+
+\begin{DoxyReturn}{Returns}
+status\+\_\+code\+\_\+t
+\begin{DoxyItemize}
+\item STATUS\+\_\+\+OK\+: If all operations for all profiles succeed.
+\item An error code\+: If any operation (clear, add, or get) fails. 
+\end{DoxyItemize}
+\end{DoxyReturn}
+
+
+\doxysubsection{Function Documentation}
+\Hypertarget{group___test_functions_ga3f414bbf7709f42ac18cff3caa211fac}\index{Test Functions@{Test Functions}!test\_adxl@{test\_adxl}}
+\index{test\_adxl@{test\_adxl}!Test Functions@{Test Functions}}
+\doxysubsubsection{\texorpdfstring{test\_adxl()}{test\_adxl()}}
+{\footnotesize\ttfamily \label{group___test_functions_ga3f414bbf7709f42ac18cff3caa211fac} 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} test\+\_\+adxl (\begin{DoxyParamCaption}\item[{void}]{}{}\end{DoxyParamCaption})}
+
+
+
+Tests the ADXL sensor by reading its angle data and transmitting it via UART. 
+
+The first number is the x-\/axis angle and the second number is the y-\/axis angle.
+
+This function calls the {\ttfamily adxl\+\_\+read} function to retrieve angle data from the ADXL sensor, formats the data into a string, and transmits it via UART. The transmitted string includes the X and Y angle values retrieved from the sensor.
+
+\begin{DoxyReturn}{Returns}
+status\+\_\+code\+\_\+t
+\begin{DoxyItemize}
+\item STATUS\+\_\+\+OK\+: If the test is successful and the data is transmitted. 
+\end{DoxyItemize}
+\end{DoxyReturn}
+\Hypertarget{group___test_functions_ga52f4158c4c898c8f2f789471df8d0c18}\index{Test Functions@{Test Functions}!test\_flash@{test\_flash}}
+\index{test\_flash@{test\_flash}!Test Functions@{Test Functions}}
+\doxysubsubsection{\texorpdfstring{test\_flash()}{test\_flash()}}
+{\footnotesize\ttfamily \label{group___test_functions_ga52f4158c4c898c8f2f789471df8d0c18} 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} test\+\_\+flash (\begin{DoxyParamCaption}\item[{void}]{}{}\end{DoxyParamCaption})}
+
+\Hypertarget{group___test_functions_gaf6c98d781be5d81b7c94cbb91d9b1d1d}\index{Test Functions@{Test Functions}!test\_led@{test\_led}}
+\index{test\_led@{test\_led}!Test Functions@{Test Functions}}
+\doxysubsubsection{\texorpdfstring{test\_led()}{test\_led()}}
+{\footnotesize\ttfamily \label{group___test_functions_gaf6c98d781be5d81b7c94cbb91d9b1d1d} 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} test\+\_\+led (\begin{DoxyParamCaption}\item[{void}]{}{}\end{DoxyParamCaption})}
+
+
+
+Toggles the onboard green LED. 
+
+This LED is not visible unless the top of the case is removed.
+
+toggles the LD2 GPIO pin and echoes the UART respones
+
+\begin{DoxyReturn}{Returns}
+status\+\_\+code\+\_\+t
+\begin{DoxyItemize}
+\item STATUS\+\_\+\+OK\+: If all operations for all profiles succeed. 
+\end{DoxyItemize}
+\end{DoxyReturn}
+\Hypertarget{group___test_functions_gaced4a912d06318b1f66ef100ce0de380}\index{Test Functions@{Test Functions}!test\_servos@{test\_servos}}
+\index{test\_servos@{test\_servos}!Test Functions@{Test Functions}}
+\doxysubsubsection{\texorpdfstring{test\_servos()}{test\_servos()}}
+{\footnotesize\ttfamily \label{group___test_functions_gaced4a912d06318b1f66ef100ce0de380} 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} test\+\_\+servos (\begin{DoxyParamCaption}\item[{void}]{}{}\end{DoxyParamCaption})}
+
+
+
+Test the servos by setting a test profile. 
+
+This function initializes a test profile for the servos and sets the state to {\ttfamily RUN\+\_\+\+TEST\+\_\+\+STATE}. It prepares the system for running a test on the servos.
+
+\begin{DoxyReturn}{Returns}
+STATUS\+\_\+\+OK on successful initiation of the test. 
+\end{DoxyReturn}

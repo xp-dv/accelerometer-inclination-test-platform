@@ -1,0 +1,168 @@
+\doxysection{Edit Profile Commands}
+\hypertarget{group___edit_profile_commands}{}\label{group___edit_profile_commands}\index{Edit Profile Commands@{Edit Profile Commands}}
+
+
+Functions for the editing of profiles  
+
+
+\doxysubsubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} \mbox{\hyperlink{group___edit_profile_commands_ga322ec4569411791a7521a1b11e29ac73}{get\+\_\+setpoint}} (\mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}} index, \mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}} profile)
+\begin{DoxyCompactList}\small\item\em Retrieves and transmits the setpoint data for a given index and profile. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} \mbox{\hyperlink{group___edit_profile_commands_ga4a81d78270560d5be287c6bafddee4d1}{add\+\_\+setpoint}} (\mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}} x\+\_\+ang, \mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}} y\+\_\+ang, \mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}} speed, \mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}} profile)
+\begin{DoxyCompactList}\small\item\em Adds a new setpoint to the specified profile. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} \mbox{\hyperlink{group___edit_profile_commands_ga94e811fe0303d836b3800d0222a5f898}{remove\+\_\+setpoint}} (\mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}} index, \mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}} profile)
+\begin{DoxyCompactList}\small\item\em Removes a setpoint from the specified profile. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} \mbox{\hyperlink{group___edit_profile_commands_ga3e5c238fdb955f78994ede5f1d0e967d}{get\+\_\+profile}} (\mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}} profile)
+\begin{DoxyCompactList}\small\item\em Transmits all setpoints from a specified profile in packets of 10 setpoints or less until all setpoints in that profile have been printed. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} \mbox{\hyperlink{group___edit_profile_commands_gafae2468a19776954238d079912c02928}{clear\+\_\+profile}} (\mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}} profile)
+\begin{DoxyCompactList}\small\item\em Clears all setpoints in the specified profile while preserving all other profiles in flash memory. \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Functions for the editing of profiles 
+
+
+
+\doxysubsection{Function Documentation}
+\Hypertarget{group___edit_profile_commands_ga4a81d78270560d5be287c6bafddee4d1}\index{Edit Profile Commands@{Edit Profile Commands}!add\_setpoint@{add\_setpoint}}
+\index{add\_setpoint@{add\_setpoint}!Edit Profile Commands@{Edit Profile Commands}}
+\doxysubsubsection{\texorpdfstring{add\_setpoint()}{add\_setpoint()}}
+{\footnotesize\ttfamily \label{group___edit_profile_commands_ga4a81d78270560d5be287c6bafddee4d1} 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} add\+\_\+setpoint (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}}}]{x\+\_\+ang}{, }\item[{\mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}}}]{y\+\_\+ang}{, }\item[{\mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}}}]{speed}{, }\item[{\mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}}}]{profile}{}\end{DoxyParamCaption})}
+
+
+
+Adds a new setpoint to the specified profile. 
+
+This function checks if the provided arguments are within valid ranges, searches for an empty slot in the profile to store the new setpoint, and writes the setpoint data (X, Y, and speed) to flash memory. If the profile is full or if there is an issue with writing to flash, the function returns an error.
+
+
+\begin{DoxyParams}{Parameters}
+{\em x} & The X coordinate of the setpoint (in degrees). \\
+\hline
+{\em y} & The Y coordinate of the setpoint (in degrees). \\
+\hline
+{\em speed} & The speed for the setpoint (in valid range). \\
+\hline
+{\em profile} & The profile to which the setpoint will be added.\\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+status\+\_\+code\+\_\+t
+\begin{DoxyItemize}
+\item STATUS\+\_\+\+OK\+: If the setpoint is successfully added to the profile.
+\item STATUS\+\_\+\+ERR\+\_\+\+ARG\+\_\+\+OUT\+\_\+\+OF\+\_\+\+RANGE\+: If any argument is out of the valid range.
+\item STATUS\+\_\+\+ERR\+\_\+\+PROFILE\+\_\+\+FULL\+: If the profile does not have space for more setpoints.
+\item STATUS\+\_\+\+ERR\+\_\+\+FLASH\+\_\+\+WRITE\+\_\+\+FAILED\+: If there is an error while writing to flash memory. 
+\end{DoxyItemize}
+\end{DoxyReturn}
+\Hypertarget{group___edit_profile_commands_gafae2468a19776954238d079912c02928}\index{Edit Profile Commands@{Edit Profile Commands}!clear\_profile@{clear\_profile}}
+\index{clear\_profile@{clear\_profile}!Edit Profile Commands@{Edit Profile Commands}}
+\doxysubsubsection{\texorpdfstring{clear\_profile()}{clear\_profile()}}
+{\footnotesize\ttfamily \label{group___edit_profile_commands_gafae2468a19776954238d079912c02928} 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} clear\+\_\+profile (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}}}]{profile}{}\end{DoxyParamCaption})}
+
+
+
+Clears all setpoints in the specified profile while preserving all other profiles in flash memory. 
+
+This function checks if the provided profile is valid and contains data. It then clears all setpoints from the specified profile while retaining the other profiles. The function performs a sector-\/by-\/sector flash erase and writes the remaining profiles back into flash memory. If the flash write fails at any point, an error is returned.
+
+
+\begin{DoxyParams}{Parameters}
+{\em profile} & The profile number to clear.\\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+status\+\_\+code\+\_\+t
+\begin{DoxyItemize}
+\item STATUS\+\_\+\+OK\+: If the profile is successfully cleared and remaining profiles are preserved.
+\item STATUS\+\_\+\+ERR\+\_\+\+ARG\+\_\+\+OUT\+\_\+\+OF\+\_\+\+RANGE\+: If the provided profile is out of range.
+\item STATUS\+\_\+\+ERR\+\_\+\+EMPTY\+\_\+\+PROFILE\+: If the specified profile is empty and cannot be cleared.
+\item STATUS\+\_\+\+ERR\+\_\+\+FLASH\+\_\+\+WRITE\+\_\+\+FAILED\+: If there was a failure during the flash write operation. 
+\end{DoxyItemize}
+\end{DoxyReturn}
+\Hypertarget{group___edit_profile_commands_ga3e5c238fdb955f78994ede5f1d0e967d}\index{Edit Profile Commands@{Edit Profile Commands}!get\_profile@{get\_profile}}
+\index{get\_profile@{get\_profile}!Edit Profile Commands@{Edit Profile Commands}}
+\doxysubsubsection{\texorpdfstring{get\_profile()}{get\_profile()}}
+{\footnotesize\ttfamily \label{group___edit_profile_commands_ga3e5c238fdb955f78994ede5f1d0e967d} 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} get\+\_\+profile (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}}}]{profile}{}\end{DoxyParamCaption})}
+
+
+
+Transmits all setpoints from a specified profile in packets of 10 setpoints or less until all setpoints in that profile have been printed. 
+
+The first number to print in a packet, indicated by the instruction separator `'\texorpdfstring{$\vert$}{|}\textquotesingle{}\`{} is the decimal index of the first setpoint.
+
+This function checks if the provided profile is within the valid range, then retrieves and transmits the setpoints associated with the profile via UART. If the profile is empty or the setpoints cannot be found, an error code is returned.
+
+
+\begin{DoxyParams}{Parameters}
+{\em profile} & The profile number to retrieve the setpoints from.\\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+status\+\_\+code\+\_\+t
+\begin{DoxyItemize}
+\item STATUS\+\_\+\+OK\+: If the profile and its setpoints are successfully retrieved and transmitted.
+\item STATUS\+\_\+\+ERR\+\_\+\+ARG\+\_\+\+OUT\+\_\+\+OF\+\_\+\+RANGE\+: If the provided profile is out of range.
+\item STATUS\+\_\+\+ERR\+\_\+\+EMPTY\+\_\+\+PROFILE\+: If the specified profile does not contain any data. 
+\end{DoxyItemize}
+\end{DoxyReturn}
+\Hypertarget{group___edit_profile_commands_ga322ec4569411791a7521a1b11e29ac73}\index{Edit Profile Commands@{Edit Profile Commands}!get\_setpoint@{get\_setpoint}}
+\index{get\_setpoint@{get\_setpoint}!Edit Profile Commands@{Edit Profile Commands}}
+\doxysubsubsection{\texorpdfstring{get\_setpoint()}{get\_setpoint()}}
+{\footnotesize\ttfamily \label{group___edit_profile_commands_ga322ec4569411791a7521a1b11e29ac73} 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} get\+\_\+setpoint (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}}}]{index}{, }\item[{\mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}}}]{profile}{}\end{DoxyParamCaption})}
+
+
+
+Retrieves and transmits the setpoint data for a given index and profile. 
+
+This function checks if the provided index and profile are within valid ranges, retrieves the corresponding setpoint data, and transmits the setpoint\textquotesingle{}s X, Y, and speed values over UART. If the requested setpoint is invalid or empty, the function returns an error status.
+
+
+\begin{DoxyParams}{Parameters}
+{\em index} & The index of the desired setpoint. \\
+\hline
+{\em profile} & The profile associated with the setpoint.\\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+status\+\_\+code\+\_\+t
+\begin{DoxyItemize}
+\item STATUS\+\_\+\+OK\+: If the setpoint is found, valid, and successfully transmitted.
+\item STATUS\+\_\+\+ERR\+\_\+\+ARG\+\_\+\+OUT\+\_\+\+OF\+\_\+\+RANGE\+: If the index or profile is out of range.
+\item STATUS\+\_\+\+ERR\+\_\+\+EMPTY\+\_\+\+SETPOINT\+: If the requested setpoint contains invalid data (all fields empty). 
+\end{DoxyItemize}
+\end{DoxyReturn}
+\Hypertarget{group___edit_profile_commands_ga94e811fe0303d836b3800d0222a5f898}\index{Edit Profile Commands@{Edit Profile Commands}!remove\_setpoint@{remove\_setpoint}}
+\index{remove\_setpoint@{remove\_setpoint}!Edit Profile Commands@{Edit Profile Commands}}
+\doxysubsubsection{\texorpdfstring{remove\_setpoint()}{remove\_setpoint()}}
+{\footnotesize\ttfamily \label{group___edit_profile_commands_ga94e811fe0303d836b3800d0222a5f898} 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} remove\+\_\+setpoint (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}}}]{index}{, }\item[{\mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}}}]{profile}{}\end{DoxyParamCaption})}
+
+
+
+Removes a setpoint from the specified profile. 
+
+This function checks if the provided arguments are within valid ranges, ensures the specified setpoint exists, and then removes the setpoint by copying the remaining setpoints into RAM, clearing the old setpoints from flash, and writing the modified setpoints back into flash memory.
+
+
+\begin{DoxyParams}{Parameters}
+{\em index} & The index of the setpoint to be removed. \\
+\hline
+{\em profile} & The motion profile from which the setpoint will be removed.\\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+status\+\_\+code\+\_\+t
+\begin{DoxyItemize}
+\item STATUS\+\_\+\+OK\+: If the setpoint is successfully removed and flash memory is updated.
+\item STATUS\+\_\+\+ERR\+\_\+\+ARG\+\_\+\+OUT\+\_\+\+OF\+\_\+\+RANGE\+: If the provided index or profile is out of range.
+\item STATUS\+\_\+\+ERR\+\_\+\+EMPTY\+\_\+\+SETPOINT\+: If the specified setpoint is empty or invalid.
+\item STATUS\+\_\+\+ERR\+\_\+\+FLASH\+\_\+\+WRITE\+\_\+\+FAILED\+: If there is an error while writing to flash memory. 
+\end{DoxyItemize}
+\end{DoxyReturn}

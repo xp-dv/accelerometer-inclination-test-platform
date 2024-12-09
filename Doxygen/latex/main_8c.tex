@@ -1,0 +1,434 @@
+\doxysection{Accelerometer\+\_\+\+Inclination\+\_\+\+Test\+\_\+\+Platform/\+Core/\+Src/main.c File Reference}
+\hypertarget{main_8c}{}\label{main_8c}\index{Accelerometer\_Inclination\_Test\_Platform/Core/Src/main.c@{Accelerometer\_Inclination\_Test\_Platform/Core/Src/main.c}}
+
+
+\+: Main program body  
+
+
+\doxysubsubsection*{Data Structures}
+\begin{DoxyCompactItemize}
+\item 
+struct \mbox{\hyperlink{structinstruction__t}{instruction\+\_\+t}}
+\item 
+struct \mbox{\hyperlink{structsetpoint}{setpoint}}
+\item 
+struct \mbox{\hyperlink{structactive__setpoint}{active\+\_\+setpoint}}
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Typedefs}
+\begin{DoxyCompactItemize}
+\item 
+typedef uint16\+\_\+t \mbox{\hyperlink{main_8c_aab55b3d7a8e93644529d084fb3f71701}{ccr\+\_\+t}}
+\item 
+typedef struct \mbox{\hyperlink{structsetpoint}{setpoint}} \mbox{\hyperlink{main_8c_ae6dc37449d7118f01f5e5addd8c624fd}{setpoint\+\_\+t}}
+\item 
+typedef struct \mbox{\hyperlink{structactive__setpoint}{active\+\_\+setpoint}} \mbox{\hyperlink{main_8c_a2384bd4e6e809f6cf0877c533b9f034a}{active\+\_\+setpoint\+\_\+t}}
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Enumerations}
+\begin{DoxyCompactItemize}
+\item 
+enum \mbox{\hyperlink{main_8c_aeaac97ef8a153a4e1abc636f535656eb}{system\+\_\+state\+\_\+t}} \{ \newline
+\mbox{\hyperlink{main_8c_aeaac97ef8a153a4e1abc636f535656ebabece39ab07d6e99b6352cf61ea169a0d}{STARTUP\+\_\+\+STATE}}
+, \mbox{\hyperlink{main_8c_aeaac97ef8a153a4e1abc636f535656eba270bd38ebadb0c566d65d2a1f7f7267b}{HOME\+\_\+\+STATE}}
+, \mbox{\hyperlink{main_8c_aeaac97ef8a153a4e1abc636f535656ebaeca4500f6f729608a014643f8c8f4003}{IDLE\+\_\+\+STATE}}
+, \mbox{\hyperlink{main_8c_aeaac97ef8a153a4e1abc636f535656ebae40de1d3c4e95d1b28b8242bef51a07c}{RUN\+\_\+\+SETPOINT\+\_\+\+STATE}}
+, \newline
+\mbox{\hyperlink{main_8c_aeaac97ef8a153a4e1abc636f535656eba535adb74337f4630f54a4c4a4089e7b6}{RUN\+\_\+\+PROFILE\+\_\+\+STATE}}
+, \mbox{\hyperlink{main_8c_aeaac97ef8a153a4e1abc636f535656ebadb5511afb52ecd70f4be68bb0d383742}{RUN\+\_\+\+TEST\+\_\+\+STATE}}
+ \}
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+void \mbox{\hyperlink{main_8c_a70af21c671abfcc773614a9a4f63d920}{System\+Clock\+\_\+\+Config}} (void)
+\begin{DoxyCompactList}\small\item\em System Clock Configuration. \end{DoxyCompactList}\item 
+int \mbox{\hyperlink{main_8c_aac53078ae2061116902f70baa6a85d27}{strtoint}} (char \texorpdfstring{$\ast$}{*}str)
+\item 
+\mbox{\hyperlink{structinstruction__t}{instruction\+\_\+t}} \mbox{\hyperlink{main_8c_a9761df00863e6a8aae015e3cebc6b51c}{parse\+\_\+instruction}} (char \texorpdfstring{$\ast$}{*}parse\+\_\+buf)
+\item 
+void \mbox{\hyperlink{main_8c_ae2ba74b1646e5a8ad55d47e07838557a}{uart\+\_\+echo}} (char \texorpdfstring{$\ast$}{*}tx\+\_\+buf, const char \texorpdfstring{$\ast$}{*}rx\+\_\+buf, const int status)
+\item 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} \mbox{\hyperlink{main_8c_ae685fe5e50b9bd35ffb1cd0463deb896}{clear\+\_\+flash}} (void)
+\item 
+void \mbox{\hyperlink{main_8c_a876440ee55678f6c62ae4cd83b5240c1}{adxl\+\_\+tx}} (uint8\+\_\+t address, uint8\+\_\+t value)
+\item 
+void \mbox{\hyperlink{main_8c_a1ff536058e640fa3b69f6468c2ccb948}{adxl\+\_\+rx}} (uint8\+\_\+t address)
+\item 
+void \mbox{\hyperlink{main_8c_a88f610b8efd7bc804486d5a78487ec12}{adxl\+\_\+init}} (void)
+\item 
+void \mbox{\hyperlink{main_8c_a05c83e4787fbab28b56703385732562b}{adxl\+\_\+read}} (void)
+\item 
+void \mbox{\hyperlink{group___state_handler_gaddf76a33aedcef21a76b5fa3d1253c42}{idle\+\_\+state\+\_\+handler}} (void)
+\begin{DoxyCompactList}\small\item\em This handler function is called for every character captured by the UART Rx interrupt. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{main_8c_aeaac97ef8a153a4e1abc636f535656eb}{system\+\_\+state\+\_\+t}} \mbox{\hyperlink{group___state_handler_gae946d792482c6d01585a939095493562}{startup\+\_\+state\+\_\+handler}} (void)
+\begin{DoxyCompactList}\small\item\em Handles the startup of the system, initializing hardware peripherals and configuring settings. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{main_8c_aeaac97ef8a153a4e1abc636f535656eb}{system\+\_\+state\+\_\+t}} \mbox{\hyperlink{group___state_handler_gae33a7f1a2bf51bf958eb9fad6b479b0f}{home\+\_\+state\+\_\+handler}} (void)
+\begin{DoxyCompactList}\small\item\em Home position state intended to reset the position of the device upon reset. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{main_8c_aeaac97ef8a153a4e1abc636f535656eb}{system\+\_\+state\+\_\+t}} \mbox{\hyperlink{group___state_handler_ga1bad73fad37a1d742517b38e92ecde53}{run\+\_\+setpoint\+\_\+state\+\_\+handler}} (void)
+\begin{DoxyCompactList}\small\item\em Handles the running of a setpoint. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{main_8c_aeaac97ef8a153a4e1abc636f535656eb}{system\+\_\+state\+\_\+t}} \mbox{\hyperlink{group___state_handler_ga3b613d30c36b4e1a4302d5868b7bcc66}{run\+\_\+profile\+\_\+state\+\_\+handler}} (void)
+\begin{DoxyCompactList}\small\item\em Handles the running of a profile by iterating through setpoints. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{main_8c_aeaac97ef8a153a4e1abc636f535656eb}{system\+\_\+state\+\_\+t}} \mbox{\hyperlink{group___state_handler_ga544eac4113c6f21e8cb616bce48d317f}{run\+\_\+test\+\_\+state\+\_\+handler}} (void)
+\begin{DoxyCompactList}\small\item\em Handles the running for running a test on the servo. \end{DoxyCompactList}\item 
+void \mbox{\hyperlink{main_8c_ae494a9643f29b87d6d81e5264e60e57b}{HAL\+\_\+\+UART\+\_\+\+Rx\+Cplt\+Callback}} (UART\+\_\+\+Handle\+Type\+Def \texorpdfstring{$\ast$}{*}huart)
+\item 
+\mbox{\hyperlink{main_8c_aab55b3d7a8e93644529d084fb3f71701}{ccr\+\_\+t}} \mbox{\hyperlink{main_8c_ad4df14aff231b179400f4f7abe966f4c}{degtoccr}} (\mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}} angle)
+\item 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} \mbox{\hyperlink{group___movement_commands_gaf123ee62e0a53cfa2b3aa16302f3c273}{move}} (\mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}} x, \mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}} y, \mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}} speed)
+\begin{DoxyCompactList}\small\item\em Sets the system\textquotesingle{}s active setpoint and transitions to the movement state. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} \mbox{\hyperlink{group___movement_commands_gae9d98de81e95024d58ca3c6fa4256470}{stop}} (void)
+\begin{DoxyCompactList}\small\item\em Stops all active platform operations and transitions to the idle state. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} \mbox{\hyperlink{group___movement_commands_ga56392c38514aa5c4a85ab57f1ca90fba}{cancel}} (void)
+\begin{DoxyCompactList}\small\item\em Cancels the current operation and transitions the device to the home state. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} \mbox{\hyperlink{group___movement_commands_ga12fb3989e2e79aa3ceb95af73ed14170}{run\+\_\+setpoint}} (\mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}} index, \mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}} profile)
+\begin{DoxyCompactList}\small\item\em Configures the system to run a specific setpoint with a given profile. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} \mbox{\hyperlink{group___movement_commands_gacd7e01ede64303f7090ff6a193fa8f75}{run\+\_\+profile}} (\mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}} profile)
+\begin{DoxyCompactList}\small\item\em Configures the system to execute a specific profile. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} \mbox{\hyperlink{group___edit_profile_commands_ga322ec4569411791a7521a1b11e29ac73}{get\+\_\+setpoint}} (\mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}} index, \mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}} profile)
+\begin{DoxyCompactList}\small\item\em Retrieves and transmits the setpoint data for a given index and profile. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} \mbox{\hyperlink{group___edit_profile_commands_ga4a81d78270560d5be287c6bafddee4d1}{add\+\_\+setpoint}} (\mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}} x, \mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}} y, \mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}} speed, \mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}} profile)
+\begin{DoxyCompactList}\small\item\em Adds a new setpoint to the specified profile. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} \mbox{\hyperlink{group___edit_profile_commands_ga94e811fe0303d836b3800d0222a5f898}{remove\+\_\+setpoint}} (\mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}} index, \mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}} profile)
+\begin{DoxyCompactList}\small\item\em Removes a setpoint from the specified profile. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} \mbox{\hyperlink{group___edit_profile_commands_ga3e5c238fdb955f78994ede5f1d0e967d}{get\+\_\+profile}} (\mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}} profile)
+\begin{DoxyCompactList}\small\item\em Transmits all setpoints from a specified profile in packets of 10 setpoints or less until all setpoints in that profile have been printed. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} \mbox{\hyperlink{group___edit_profile_commands_gafae2468a19776954238d079912c02928}{clear\+\_\+profile}} (\mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}} profile)
+\begin{DoxyCompactList}\small\item\em Clears all setpoints in the specified profile while preserving all other profiles in flash memory. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} \mbox{\hyperlink{group___test_functions_gaced4a912d06318b1f66ef100ce0de380}{test\+\_\+servos}} (void)
+\begin{DoxyCompactList}\small\item\em Test the servos by setting a test profile. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} \mbox{\hyperlink{group___test_functions_ga3f414bbf7709f42ac18cff3caa211fac}{test\+\_\+adxl}} (void)
+\begin{DoxyCompactList}\small\item\em Tests the ADXL sensor by reading its angle data and transmitting it via UART. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} \mbox{\hyperlink{group___test_functions_ga52f4158c4c898c8f2f789471df8d0c18}{test\+\_\+flash}} (void)
+\item 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} \mbox{\hyperlink{group___test_functions_gaf6c98d781be5d81b7c94cbb91d9b1d1d}{test\+\_\+led}} (void)
+\begin{DoxyCompactList}\small\item\em Toggles the onboard green LED. \end{DoxyCompactList}\item 
+int \mbox{\hyperlink{main_8c_a840291bc02cba5474a4cb46a9b9566fe}{main}} (void)
+\begin{DoxyCompactList}\small\item\em The application entry point. \end{DoxyCompactList}\item 
+void \mbox{\hyperlink{main_8c_a1730ffe1e560465665eb47d9264826f9}{Error\+\_\+\+Handler}} (void)
+\begin{DoxyCompactList}\small\item\em This function is executed in case of error occurrence. \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsubsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+SPI\+\_\+\+Handle\+Type\+Def \mbox{\hyperlink{main_8c_aec51920045aad7f70cbfd1f58228d866}{hspi3}}
+\item 
+TIM\+\_\+\+Handle\+Type\+Def \mbox{\hyperlink{main_8c_a2c80fd5510e2990a59a5c90d745c716c}{htim2}}
+\item 
+UART\+\_\+\+Handle\+Type\+Def \mbox{\hyperlink{main_8c_a2cf715bef37f7e8ef385a30974a5f0d5}{huart1}}
+\item 
+UART\+\_\+\+Handle\+Type\+Def \mbox{\hyperlink{main_8c_aa9479c261d65eecedd3d9582f7f0f89c}{huart2}}
+\item 
+uint8\+\_\+t \mbox{\hyperlink{main_8c_abc5443b8a4ab68bfe53a13ceffc99146}{adxl\+\_\+rx\+\_\+buf}} \mbox{[}\mbox{\hyperlink{main_8h_aad1f216d0f79404db77de9603b6c12bf}{ADXL\+\_\+\+DATA\+\_\+\+SIZE}}\mbox{]}
+\item 
+float \mbox{\hyperlink{main_8c_abd786e713d0e5b6032ead58fe3a50f22}{x\+\_\+g}}
+\item 
+float \mbox{\hyperlink{main_8c_ab11512e7ca34d654b9ea6430d9622a02}{y\+\_\+g}}
+\item 
+float \mbox{\hyperlink{main_8c_a73297a617ca96ab3e653f03c179e866c}{z\+\_\+g}}
+\item 
+float \mbox{\hyperlink{main_8c_a737fb1b7db0bc4190cb4e986cc9234e3}{adxl\+\_\+x\+\_\+ang}}
+\item 
+float \mbox{\hyperlink{main_8c_ae61e5f80a3390f5734e694483e89a386}{adxl\+\_\+y\+\_\+ang}}
+\item 
+float \mbox{\hyperlink{main_8c_af33bb34f8bcdbc677a77f80c0f1fbaf9}{z\+\_\+ang}}
+\item 
+char \mbox{\hyperlink{main_8c_aa3ebab4b560f543e073d0500ead8931b}{uart\+\_\+rx\+\_\+char}} \mbox{[}2\mbox{]}
+\item 
+char \mbox{\hyperlink{main_8c_adfd5af0b05bc97210e5fd14ac64667e8}{uart\+\_\+circ\+\_\+buf}} \mbox{[}\mbox{\hyperlink{main_8h_a8feee2dd055540dc299e9775e2f67d0d}{UART\+\_\+\+RX\+\_\+\+BUF\+\_\+\+LEN}}\mbox{]}
+\item 
+uint8\+\_\+t \mbox{\hyperlink{main_8c_a7a35ac21571e839679b52e360f7fa1ef}{instruction\+\_\+flag}} = 0
+\item 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} \mbox{\hyperlink{main_8c_a27483b1cc2ce88e138ffde27cb23d272}{uart\+\_\+it\+\_\+status}} = \mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36a7e4a42e3b6dd63708c64cf3db6f69566}{STATUS\+\_\+\+OK}}
+\item 
+\mbox{\hyperlink{main_8c_a2384bd4e6e809f6cf0877c533b9f034a}{active\+\_\+setpoint\+\_\+t}} \mbox{\hyperlink{main_8c_a1726fb259650cd13b98d9e0e585178c0}{active\+\_\+setpoint}}
+\item 
+\mbox{\hyperlink{main_8c_aeaac97ef8a153a4e1abc636f535656eb}{system\+\_\+state\+\_\+t}} \mbox{\hyperlink{main_8c_a11662bcb46fddb868aef136550d4cb10}{next\+\_\+state\+\_\+e}} = \mbox{\hyperlink{main_8c_aeaac97ef8a153a4e1abc636f535656ebabece39ab07d6e99b6352cf61ea169a0d}{STARTUP\+\_\+\+STATE}}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+\+: Main program body 
+
+\begin{DoxyAttention}{Attention}
+
+\end{DoxyAttention}
+Copyright (c) 2024 STMicroelectronics. All rights reserved.
+
+This software is licensed under terms that can be found in the LICENSE file in the root directory of this software component. If no LICENSE file comes with this software, it is provided AS-\/\+IS. 
+
+\doxysubsection{Typedef Documentation}
+\Hypertarget{main_8c_a2384bd4e6e809f6cf0877c533b9f034a}\index{main.c@{main.c}!active\_setpoint\_t@{active\_setpoint\_t}}
+\index{active\_setpoint\_t@{active\_setpoint\_t}!main.c@{main.c}}
+\doxysubsubsection{\texorpdfstring{active\_setpoint\_t}{active\_setpoint\_t}}
+{\footnotesize\ttfamily \label{main_8c_a2384bd4e6e809f6cf0877c533b9f034a} 
+typedef struct \mbox{\hyperlink{structactive__setpoint}{active\+\_\+setpoint}} \mbox{\hyperlink{main_8c_a2384bd4e6e809f6cf0877c533b9f034a}{active\+\_\+setpoint\+\_\+t}}}
+
+\Hypertarget{main_8c_aab55b3d7a8e93644529d084fb3f71701}\index{main.c@{main.c}!ccr\_t@{ccr\_t}}
+\index{ccr\_t@{ccr\_t}!main.c@{main.c}}
+\doxysubsubsection{\texorpdfstring{ccr\_t}{ccr\_t}}
+{\footnotesize\ttfamily \label{main_8c_aab55b3d7a8e93644529d084fb3f71701} 
+typedef uint16\+\_\+t \mbox{\hyperlink{main_8c_aab55b3d7a8e93644529d084fb3f71701}{ccr\+\_\+t}}}
+
+\Hypertarget{main_8c_ae6dc37449d7118f01f5e5addd8c624fd}\index{main.c@{main.c}!setpoint\_t@{setpoint\_t}}
+\index{setpoint\_t@{setpoint\_t}!main.c@{main.c}}
+\doxysubsubsection{\texorpdfstring{setpoint\_t}{setpoint\_t}}
+{\footnotesize\ttfamily \label{main_8c_ae6dc37449d7118f01f5e5addd8c624fd} 
+typedef struct \mbox{\hyperlink{structsetpoint}{setpoint}} \mbox{\hyperlink{main_8c_ae6dc37449d7118f01f5e5addd8c624fd}{setpoint\+\_\+t}}}
+
+
+
+\doxysubsection{Enumeration Type Documentation}
+\Hypertarget{main_8c_aeaac97ef8a153a4e1abc636f535656eb}\index{main.c@{main.c}!system\_state\_t@{system\_state\_t}}
+\index{system\_state\_t@{system\_state\_t}!main.c@{main.c}}
+\doxysubsubsection{\texorpdfstring{system\_state\_t}{system\_state\_t}}
+{\footnotesize\ttfamily \label{main_8c_aeaac97ef8a153a4e1abc636f535656eb} 
+enum \mbox{\hyperlink{main_8c_aeaac97ef8a153a4e1abc636f535656eb}{system\+\_\+state\+\_\+t}}}
+
+\begin{DoxyEnumFields}[2]{Enumerator}
+\raisebox{\heightof{T}}[0pt][0pt]{\index{STARTUP\_STATE@{STARTUP\_STATE}!main.c@{main.c}}\index{main.c@{main.c}!STARTUP\_STATE@{STARTUP\_STATE}}}\Hypertarget{main_8c_aeaac97ef8a153a4e1abc636f535656ebabece39ab07d6e99b6352cf61ea169a0d}\label{main_8c_aeaac97ef8a153a4e1abc636f535656eb} 
+STARTUP\+\_\+\+STATE&\\
+\hline
+
+\raisebox{\heightof{T}}[0pt][0pt]{\index{HOME\_STATE@{HOME\_STATE}!main.c@{main.c}}\index{main.c@{main.c}!HOME\_STATE@{HOME\_STATE}}}\Hypertarget{main_8c_aeaac97ef8a153a4e1abc636f535656eba270bd38ebadb0c566d65d2a1f7f7267b}\label{main_8c_aeaac97ef8a153a4e1abc636f535656eb} 
+HOME\+\_\+\+STATE&\\
+\hline
+
+\raisebox{\heightof{T}}[0pt][0pt]{\index{IDLE\_STATE@{IDLE\_STATE}!main.c@{main.c}}\index{main.c@{main.c}!IDLE\_STATE@{IDLE\_STATE}}}\Hypertarget{main_8c_aeaac97ef8a153a4e1abc636f535656ebaeca4500f6f729608a014643f8c8f4003}\label{main_8c_aeaac97ef8a153a4e1abc636f535656eb} 
+IDLE\+\_\+\+STATE&\\
+\hline
+
+\raisebox{\heightof{T}}[0pt][0pt]{\index{RUN\_SETPOINT\_STATE@{RUN\_SETPOINT\_STATE}!main.c@{main.c}}\index{main.c@{main.c}!RUN\_SETPOINT\_STATE@{RUN\_SETPOINT\_STATE}}}\Hypertarget{main_8c_aeaac97ef8a153a4e1abc636f535656ebae40de1d3c4e95d1b28b8242bef51a07c}\label{main_8c_aeaac97ef8a153a4e1abc636f535656eb} 
+RUN\+\_\+\+SETPOINT\+\_\+\+STATE&\\
+\hline
+
+\raisebox{\heightof{T}}[0pt][0pt]{\index{RUN\_PROFILE\_STATE@{RUN\_PROFILE\_STATE}!main.c@{main.c}}\index{main.c@{main.c}!RUN\_PROFILE\_STATE@{RUN\_PROFILE\_STATE}}}\Hypertarget{main_8c_aeaac97ef8a153a4e1abc636f535656eba535adb74337f4630f54a4c4a4089e7b6}\label{main_8c_aeaac97ef8a153a4e1abc636f535656eb} 
+RUN\+\_\+\+PROFILE\+\_\+\+STATE&\\
+\hline
+
+\raisebox{\heightof{T}}[0pt][0pt]{\index{RUN\_TEST\_STATE@{RUN\_TEST\_STATE}!main.c@{main.c}}\index{main.c@{main.c}!RUN\_TEST\_STATE@{RUN\_TEST\_STATE}}}\Hypertarget{main_8c_aeaac97ef8a153a4e1abc636f535656ebadb5511afb52ecd70f4be68bb0d383742}\label{main_8c_aeaac97ef8a153a4e1abc636f535656eb} 
+RUN\+\_\+\+TEST\+\_\+\+STATE&\\
+\hline
+
+\end{DoxyEnumFields}
+
+
+\doxysubsection{Function Documentation}
+\Hypertarget{main_8c_a88f610b8efd7bc804486d5a78487ec12}\index{main.c@{main.c}!adxl\_init@{adxl\_init}}
+\index{adxl\_init@{adxl\_init}!main.c@{main.c}}
+\doxysubsubsection{\texorpdfstring{adxl\_init()}{adxl\_init()}}
+{\footnotesize\ttfamily \label{main_8c_a88f610b8efd7bc804486d5a78487ec12} 
+void adxl\+\_\+init (\begin{DoxyParamCaption}\item[{void}]{}{}\end{DoxyParamCaption})}
+
+\Hypertarget{main_8c_a05c83e4787fbab28b56703385732562b}\index{main.c@{main.c}!adxl\_read@{adxl\_read}}
+\index{adxl\_read@{adxl\_read}!main.c@{main.c}}
+\doxysubsubsection{\texorpdfstring{adxl\_read()}{adxl\_read()}}
+{\footnotesize\ttfamily \label{main_8c_a05c83e4787fbab28b56703385732562b} 
+void adxl\+\_\+read (\begin{DoxyParamCaption}\item[{void}]{}{}\end{DoxyParamCaption})}
+
+\Hypertarget{main_8c_a1ff536058e640fa3b69f6468c2ccb948}\index{main.c@{main.c}!adxl\_rx@{adxl\_rx}}
+\index{adxl\_rx@{adxl\_rx}!main.c@{main.c}}
+\doxysubsubsection{\texorpdfstring{adxl\_rx()}{adxl\_rx()}}
+{\footnotesize\ttfamily \label{main_8c_a1ff536058e640fa3b69f6468c2ccb948} 
+void adxl\+\_\+rx (\begin{DoxyParamCaption}\item[{uint8\+\_\+t}]{address}{}\end{DoxyParamCaption})}
+
+\Hypertarget{main_8c_a876440ee55678f6c62ae4cd83b5240c1}\index{main.c@{main.c}!adxl\_tx@{adxl\_tx}}
+\index{adxl\_tx@{adxl\_tx}!main.c@{main.c}}
+\doxysubsubsection{\texorpdfstring{adxl\_tx()}{adxl\_tx()}}
+{\footnotesize\ttfamily \label{main_8c_a876440ee55678f6c62ae4cd83b5240c1} 
+void adxl\+\_\+tx (\begin{DoxyParamCaption}\item[{uint8\+\_\+t}]{address}{, }\item[{uint8\+\_\+t}]{value}{}\end{DoxyParamCaption})}
+
+\Hypertarget{main_8c_ae685fe5e50b9bd35ffb1cd0463deb896}\index{main.c@{main.c}!clear\_flash@{clear\_flash}}
+\index{clear\_flash@{clear\_flash}!main.c@{main.c}}
+\doxysubsubsection{\texorpdfstring{clear\_flash()}{clear\_flash()}}
+{\footnotesize\ttfamily \label{main_8c_ae685fe5e50b9bd35ffb1cd0463deb896} 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} clear\+\_\+flash (\begin{DoxyParamCaption}\item[{void}]{}{}\end{DoxyParamCaption})}
+
+\Hypertarget{main_8c_ad4df14aff231b179400f4f7abe966f4c}\index{main.c@{main.c}!degtoccr@{degtoccr}}
+\index{degtoccr@{degtoccr}!main.c@{main.c}}
+\doxysubsubsection{\texorpdfstring{degtoccr()}{degtoccr()}}
+{\footnotesize\ttfamily \label{main_8c_ad4df14aff231b179400f4f7abe966f4c} 
+\mbox{\hyperlink{main_8c_aab55b3d7a8e93644529d084fb3f71701}{ccr\+\_\+t}} degtoccr (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{main_8h_a4d4048fda6e6f68c5700addf0bffcbd7}{input\+\_\+t}}}]{angle}{}\end{DoxyParamCaption})}
+
+\Hypertarget{main_8c_a1730ffe1e560465665eb47d9264826f9}\index{main.c@{main.c}!Error\_Handler@{Error\_Handler}}
+\index{Error\_Handler@{Error\_Handler}!main.c@{main.c}}
+\doxysubsubsection{\texorpdfstring{Error\_Handler()}{Error\_Handler()}}
+{\footnotesize\ttfamily \label{main_8c_a1730ffe1e560465665eb47d9264826f9} 
+void Error\+\_\+\+Handler (\begin{DoxyParamCaption}\item[{void}]{}{}\end{DoxyParamCaption})}
+
+
+
+This function is executed in case of error occurrence. 
+
+
+\begin{DoxyRetVals}{Return values}
+{\em None} & \\
+\hline
+\end{DoxyRetVals}
+\Hypertarget{main_8c_ae494a9643f29b87d6d81e5264e60e57b}\index{main.c@{main.c}!HAL\_UART\_RxCpltCallback@{HAL\_UART\_RxCpltCallback}}
+\index{HAL\_UART\_RxCpltCallback@{HAL\_UART\_RxCpltCallback}!main.c@{main.c}}
+\doxysubsubsection{\texorpdfstring{HAL\_UART\_RxCpltCallback()}{HAL\_UART\_RxCpltCallback()}}
+{\footnotesize\ttfamily \label{main_8c_ae494a9643f29b87d6d81e5264e60e57b} 
+void HAL\+\_\+\+UART\+\_\+\+Rx\+Cplt\+Callback (\begin{DoxyParamCaption}\item[{UART\+\_\+\+Handle\+Type\+Def \texorpdfstring{$\ast$}{*}}]{huart}{}\end{DoxyParamCaption})}
+
+\Hypertarget{main_8c_a840291bc02cba5474a4cb46a9b9566fe}\index{main.c@{main.c}!main@{main}}
+\index{main@{main}!main.c@{main.c}}
+\doxysubsubsection{\texorpdfstring{main()}{main()}}
+{\footnotesize\ttfamily \label{main_8c_a840291bc02cba5474a4cb46a9b9566fe} 
+int main (\begin{DoxyParamCaption}\item[{void}]{}{}\end{DoxyParamCaption})}
+
+
+
+The application entry point. 
+
+
+\begin{DoxyRetVals}{Return values}
+{\em int} & \\
+\hline
+\end{DoxyRetVals}
+\Hypertarget{main_8c_a9761df00863e6a8aae015e3cebc6b51c}\index{main.c@{main.c}!parse\_instruction@{parse\_instruction}}
+\index{parse\_instruction@{parse\_instruction}!main.c@{main.c}}
+\doxysubsubsection{\texorpdfstring{parse\_instruction()}{parse\_instruction()}}
+{\footnotesize\ttfamily \label{main_8c_a9761df00863e6a8aae015e3cebc6b51c} 
+\mbox{\hyperlink{structinstruction__t}{instruction\+\_\+t}} parse\+\_\+instruction (\begin{DoxyParamCaption}\item[{char \texorpdfstring{$\ast$}{*}}]{parse\+\_\+buf}{}\end{DoxyParamCaption})}
+
+\Hypertarget{main_8c_aac53078ae2061116902f70baa6a85d27}\index{main.c@{main.c}!strtoint@{strtoint}}
+\index{strtoint@{strtoint}!main.c@{main.c}}
+\doxysubsubsection{\texorpdfstring{strtoint()}{strtoint()}}
+{\footnotesize\ttfamily \label{main_8c_aac53078ae2061116902f70baa6a85d27} 
+int strtoint (\begin{DoxyParamCaption}\item[{char \texorpdfstring{$\ast$}{*}}]{str}{}\end{DoxyParamCaption})}
+
+\Hypertarget{main_8c_a70af21c671abfcc773614a9a4f63d920}\index{main.c@{main.c}!SystemClock\_Config@{SystemClock\_Config}}
+\index{SystemClock\_Config@{SystemClock\_Config}!main.c@{main.c}}
+\doxysubsubsection{\texorpdfstring{SystemClock\_Config()}{SystemClock\_Config()}}
+{\footnotesize\ttfamily \label{main_8c_a70af21c671abfcc773614a9a4f63d920} 
+void System\+Clock\+\_\+\+Config (\begin{DoxyParamCaption}\item[{void}]{}{}\end{DoxyParamCaption})}
+
+
+
+System Clock Configuration. 
+
+
+\begin{DoxyRetVals}{Return values}
+{\em None} & \\
+\hline
+\end{DoxyRetVals}
+Configure the main internal regulator output voltage
+
+Initializes the RCC Oscillators according to the specified parameters in the RCC\+\_\+\+Osc\+Init\+Type\+Def structure.
+
+Initializes the CPU, AHB and APB buses clocks\Hypertarget{main_8c_ae2ba74b1646e5a8ad55d47e07838557a}\index{main.c@{main.c}!uart\_echo@{uart\_echo}}
+\index{uart\_echo@{uart\_echo}!main.c@{main.c}}
+\doxysubsubsection{\texorpdfstring{uart\_echo()}{uart\_echo()}}
+{\footnotesize\ttfamily \label{main_8c_ae2ba74b1646e5a8ad55d47e07838557a} 
+void uart\+\_\+echo (\begin{DoxyParamCaption}\item[{char \texorpdfstring{$\ast$}{*}}]{tx\+\_\+buf}{, }\item[{const char \texorpdfstring{$\ast$}{*}}]{rx\+\_\+buf}{, }\item[{const int}]{status}{}\end{DoxyParamCaption})}
+
+
+
+\doxysubsection{Variable Documentation}
+\Hypertarget{main_8c_a1726fb259650cd13b98d9e0e585178c0}\index{main.c@{main.c}!active\_setpoint@{active\_setpoint}}
+\index{active\_setpoint@{active\_setpoint}!main.c@{main.c}}
+\doxysubsubsection{\texorpdfstring{active\_setpoint}{active\_setpoint}}
+{\footnotesize\ttfamily \label{main_8c_a1726fb259650cd13b98d9e0e585178c0} 
+\mbox{\hyperlink{main_8c_a2384bd4e6e809f6cf0877c533b9f034a}{active\+\_\+setpoint\+\_\+t}} active\+\_\+setpoint}
+
+{\bfseries Initial value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{=\ \{}
+\DoxyCodeLine{\ \ .index\ =\ 0,}
+\DoxyCodeLine{\}}
+
+\end{DoxyCode}
+\Hypertarget{main_8c_abc5443b8a4ab68bfe53a13ceffc99146}\index{main.c@{main.c}!adxl\_rx\_buf@{adxl\_rx\_buf}}
+\index{adxl\_rx\_buf@{adxl\_rx\_buf}!main.c@{main.c}}
+\doxysubsubsection{\texorpdfstring{adxl\_rx\_buf}{adxl\_rx\_buf}}
+{\footnotesize\ttfamily \label{main_8c_abc5443b8a4ab68bfe53a13ceffc99146} 
+uint8\+\_\+t adxl\+\_\+rx\+\_\+buf\mbox{[}\mbox{\hyperlink{main_8h_aad1f216d0f79404db77de9603b6c12bf}{ADXL\+\_\+\+DATA\+\_\+\+SIZE}}\mbox{]}}
+
+\Hypertarget{main_8c_a737fb1b7db0bc4190cb4e986cc9234e3}\index{main.c@{main.c}!adxl\_x\_ang@{adxl\_x\_ang}}
+\index{adxl\_x\_ang@{adxl\_x\_ang}!main.c@{main.c}}
+\doxysubsubsection{\texorpdfstring{adxl\_x\_ang}{adxl\_x\_ang}}
+{\footnotesize\ttfamily \label{main_8c_a737fb1b7db0bc4190cb4e986cc9234e3} 
+float adxl\+\_\+x\+\_\+ang}
+
+\Hypertarget{main_8c_ae61e5f80a3390f5734e694483e89a386}\index{main.c@{main.c}!adxl\_y\_ang@{adxl\_y\_ang}}
+\index{adxl\_y\_ang@{adxl\_y\_ang}!main.c@{main.c}}
+\doxysubsubsection{\texorpdfstring{adxl\_y\_ang}{adxl\_y\_ang}}
+{\footnotesize\ttfamily \label{main_8c_ae61e5f80a3390f5734e694483e89a386} 
+float adxl\+\_\+y\+\_\+ang}
+
+\Hypertarget{main_8c_aec51920045aad7f70cbfd1f58228d866}\index{main.c@{main.c}!hspi3@{hspi3}}
+\index{hspi3@{hspi3}!main.c@{main.c}}
+\doxysubsubsection{\texorpdfstring{hspi3}{hspi3}}
+{\footnotesize\ttfamily \label{main_8c_aec51920045aad7f70cbfd1f58228d866} 
+SPI\+\_\+\+Handle\+Type\+Def hspi3}
+
+\Hypertarget{main_8c_a2c80fd5510e2990a59a5c90d745c716c}\index{main.c@{main.c}!htim2@{htim2}}
+\index{htim2@{htim2}!main.c@{main.c}}
+\doxysubsubsection{\texorpdfstring{htim2}{htim2}}
+{\footnotesize\ttfamily \label{main_8c_a2c80fd5510e2990a59a5c90d745c716c} 
+TIM\+\_\+\+Handle\+Type\+Def htim2}
+
+\Hypertarget{main_8c_a2cf715bef37f7e8ef385a30974a5f0d5}\index{main.c@{main.c}!huart1@{huart1}}
+\index{huart1@{huart1}!main.c@{main.c}}
+\doxysubsubsection{\texorpdfstring{huart1}{huart1}}
+{\footnotesize\ttfamily \label{main_8c_a2cf715bef37f7e8ef385a30974a5f0d5} 
+UART\+\_\+\+Handle\+Type\+Def huart1}
+
+\Hypertarget{main_8c_aa9479c261d65eecedd3d9582f7f0f89c}\index{main.c@{main.c}!huart2@{huart2}}
+\index{huart2@{huart2}!main.c@{main.c}}
+\doxysubsubsection{\texorpdfstring{huart2}{huart2}}
+{\footnotesize\ttfamily \label{main_8c_aa9479c261d65eecedd3d9582f7f0f89c} 
+UART\+\_\+\+Handle\+Type\+Def huart2}
+
+\Hypertarget{main_8c_a7a35ac21571e839679b52e360f7fa1ef}\index{main.c@{main.c}!instruction\_flag@{instruction\_flag}}
+\index{instruction\_flag@{instruction\_flag}!main.c@{main.c}}
+\doxysubsubsection{\texorpdfstring{instruction\_flag}{instruction\_flag}}
+{\footnotesize\ttfamily \label{main_8c_a7a35ac21571e839679b52e360f7fa1ef} 
+uint8\+\_\+t instruction\+\_\+flag = 0}
+
+\Hypertarget{main_8c_a11662bcb46fddb868aef136550d4cb10}\index{main.c@{main.c}!next\_state\_e@{next\_state\_e}}
+\index{next\_state\_e@{next\_state\_e}!main.c@{main.c}}
+\doxysubsubsection{\texorpdfstring{next\_state\_e}{next\_state\_e}}
+{\footnotesize\ttfamily \label{main_8c_a11662bcb46fddb868aef136550d4cb10} 
+\mbox{\hyperlink{main_8c_aeaac97ef8a153a4e1abc636f535656eb}{system\+\_\+state\+\_\+t}} next\+\_\+state\+\_\+e = \mbox{\hyperlink{main_8c_aeaac97ef8a153a4e1abc636f535656ebabece39ab07d6e99b6352cf61ea169a0d}{STARTUP\+\_\+\+STATE}}}
+
+\Hypertarget{main_8c_adfd5af0b05bc97210e5fd14ac64667e8}\index{main.c@{main.c}!uart\_circ\_buf@{uart\_circ\_buf}}
+\index{uart\_circ\_buf@{uart\_circ\_buf}!main.c@{main.c}}
+\doxysubsubsection{\texorpdfstring{uart\_circ\_buf}{uart\_circ\_buf}}
+{\footnotesize\ttfamily \label{main_8c_adfd5af0b05bc97210e5fd14ac64667e8} 
+char uart\+\_\+circ\+\_\+buf\mbox{[}\mbox{\hyperlink{main_8h_a8feee2dd055540dc299e9775e2f67d0d}{UART\+\_\+\+RX\+\_\+\+BUF\+\_\+\+LEN}}\mbox{]}}
+
+\Hypertarget{main_8c_a27483b1cc2ce88e138ffde27cb23d272}\index{main.c@{main.c}!uart\_it\_status@{uart\_it\_status}}
+\index{uart\_it\_status@{uart\_it\_status}!main.c@{main.c}}
+\doxysubsubsection{\texorpdfstring{uart\_it\_status}{uart\_it\_status}}
+{\footnotesize\ttfamily \label{main_8c_a27483b1cc2ce88e138ffde27cb23d272} 
+\mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36}{status\+\_\+code\+\_\+t}} uart\+\_\+it\+\_\+status = \mbox{\hyperlink{main_8h_ae852245dd9cdac701be4c58101286c36a7e4a42e3b6dd63708c64cf3db6f69566}{STATUS\+\_\+\+OK}}}
+
+\Hypertarget{main_8c_aa3ebab4b560f543e073d0500ead8931b}\index{main.c@{main.c}!uart\_rx\_char@{uart\_rx\_char}}
+\index{uart\_rx\_char@{uart\_rx\_char}!main.c@{main.c}}
+\doxysubsubsection{\texorpdfstring{uart\_rx\_char}{uart\_rx\_char}}
+{\footnotesize\ttfamily \label{main_8c_aa3ebab4b560f543e073d0500ead8931b} 
+char uart\+\_\+rx\+\_\+char\mbox{[}2\mbox{]}}
+
+\Hypertarget{main_8c_abd786e713d0e5b6032ead58fe3a50f22}\index{main.c@{main.c}!x\_g@{x\_g}}
+\index{x\_g@{x\_g}!main.c@{main.c}}
+\doxysubsubsection{\texorpdfstring{x\_g}{x\_g}}
+{\footnotesize\ttfamily \label{main_8c_abd786e713d0e5b6032ead58fe3a50f22} 
+float x\+\_\+g}
+
+\Hypertarget{main_8c_ab11512e7ca34d654b9ea6430d9622a02}\index{main.c@{main.c}!y\_g@{y\_g}}
+\index{y\_g@{y\_g}!main.c@{main.c}}
+\doxysubsubsection{\texorpdfstring{y\_g}{y\_g}}
+{\footnotesize\ttfamily \label{main_8c_ab11512e7ca34d654b9ea6430d9622a02} 
+float y\+\_\+g}
+
+\Hypertarget{main_8c_af33bb34f8bcdbc677a77f80c0f1fbaf9}\index{main.c@{main.c}!z\_ang@{z\_ang}}
+\index{z\_ang@{z\_ang}!main.c@{main.c}}
+\doxysubsubsection{\texorpdfstring{z\_ang}{z\_ang}}
+{\footnotesize\ttfamily \label{main_8c_af33bb34f8bcdbc677a77f80c0f1fbaf9} 
+float z\+\_\+ang}
+
+\Hypertarget{main_8c_a73297a617ca96ab3e653f03c179e866c}\index{main.c@{main.c}!z\_g@{z\_g}}
+\index{z\_g@{z\_g}!main.c@{main.c}}
+\doxysubsubsection{\texorpdfstring{z\_g}{z\_g}}
+{\footnotesize\ttfamily \label{main_8c_a73297a617ca96ab3e653f03c179e866c} 
+float z\+\_\+g}
+

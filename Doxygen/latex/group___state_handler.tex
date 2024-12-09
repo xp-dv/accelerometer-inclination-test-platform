@@ -1,0 +1,163 @@
+\doxysection{State Handlers}
+\hypertarget{group___state_handler}{}\label{group___state_handler}\index{State Handlers@{State Handlers}}
+
+
+Functions for testing the system components such as servos, sensors, etc.  
+
+
+\doxysubsubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{main_8c_aeaac97ef8a153a4e1abc636f535656eb}{system\+\_\+state\+\_\+t}} \mbox{\hyperlink{group___state_handler_gae946d792482c6d01585a939095493562}{startup\+\_\+state\+\_\+handler}} (void)
+\begin{DoxyCompactList}\small\item\em Handles the startup of the system, initializing hardware peripherals and configuring settings. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{main_8c_aeaac97ef8a153a4e1abc636f535656eb}{system\+\_\+state\+\_\+t}} \mbox{\hyperlink{group___state_handler_gae33a7f1a2bf51bf958eb9fad6b479b0f}{home\+\_\+state\+\_\+handler}} (void)
+\begin{DoxyCompactList}\small\item\em Home position state intended to reset the position of the device upon reset. \end{DoxyCompactList}\item 
+void \mbox{\hyperlink{group___state_handler_gaddf76a33aedcef21a76b5fa3d1253c42}{idle\+\_\+state\+\_\+handler}} (void)
+\begin{DoxyCompactList}\small\item\em This handler function is called for every character captured by the UART Rx interrupt. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{main_8c_aeaac97ef8a153a4e1abc636f535656eb}{system\+\_\+state\+\_\+t}} \mbox{\hyperlink{group___state_handler_ga1bad73fad37a1d742517b38e92ecde53}{run\+\_\+setpoint\+\_\+state\+\_\+handler}} (void)
+\begin{DoxyCompactList}\small\item\em Handles the running of a setpoint. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{main_8c_aeaac97ef8a153a4e1abc636f535656eb}{system\+\_\+state\+\_\+t}} \mbox{\hyperlink{group___state_handler_ga3b613d30c36b4e1a4302d5868b7bcc66}{run\+\_\+profile\+\_\+state\+\_\+handler}} (void)
+\begin{DoxyCompactList}\small\item\em Handles the running of a profile by iterating through setpoints. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{main_8c_aeaac97ef8a153a4e1abc636f535656eb}{system\+\_\+state\+\_\+t}} \mbox{\hyperlink{group___state_handler_ga544eac4113c6f21e8cb616bce48d317f}{run\+\_\+test\+\_\+state\+\_\+handler}} (void)
+\begin{DoxyCompactList}\small\item\em Handles the running for running a test on the servo. \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Functions for testing the system components such as servos, sensors, etc. 
+
+
+
+\doxysubsection{Function Documentation}
+\Hypertarget{group___state_handler_gae33a7f1a2bf51bf958eb9fad6b479b0f}\index{State Handlers@{State Handlers}!home\_state\_handler@{home\_state\_handler}}
+\index{home\_state\_handler@{home\_state\_handler}!State Handlers@{State Handlers}}
+\doxysubsubsection{\texorpdfstring{home\_state\_handler()}{home\_state\_handler()}}
+{\footnotesize\ttfamily \label{group___state_handler_gae33a7f1a2bf51bf958eb9fad6b479b0f} 
+\mbox{\hyperlink{main_8c_aeaac97ef8a153a4e1abc636f535656eb}{system\+\_\+state\+\_\+t}} home\+\_\+state\+\_\+handler (\begin{DoxyParamCaption}\item[{void}]{}{}\end{DoxyParamCaption})}
+
+
+
+Home position state intended to reset the position of the device upon reset. 
+
+It is required for \doxylink{group___movement_commands_ga56392c38514aa5c4a85ab57f1ca90fba}{cancel()} to function properly.
+
+\begin{DoxyReturn}{Returns}
+system\+\_\+state\+\_\+t 
+\end{DoxyReturn}
+\Hypertarget{group___state_handler_gaddf76a33aedcef21a76b5fa3d1253c42}\index{State Handlers@{State Handlers}!idle\_state\_handler@{idle\_state\_handler}}
+\index{idle\_state\_handler@{idle\_state\_handler}!State Handlers@{State Handlers}}
+\doxysubsubsection{\texorpdfstring{idle\_state\_handler()}{idle\_state\_handler()}}
+{\footnotesize\ttfamily \label{group___state_handler_gaddf76a33aedcef21a76b5fa3d1253c42} 
+void idle\+\_\+state\+\_\+handler (\begin{DoxyParamCaption}\item[{void}]{}{}\end{DoxyParamCaption})}
+
+
+
+This handler function is called for every character captured by the UART Rx interrupt. 
+
+This allows for execution of the \doxylink{group___movement_commands_gae9d98de81e95024d58ca3c6fa4256470}{stop()} and \doxylink{group___movement_commands_ga56392c38514aa5c4a85ab57f1ca90fba}{cancel()} commands at any time or the execution of setpoint commands while the device is in the IDLE\+\_\+\+STATE.
+
+In the idle state, the system waits for a UART instruction to be received. Once the instruction is received and parsed, it is executed based on the command. The handler supports a wide range of instructions, including movement, stop, cancel, and testing commands. It also handles argument validation and echoes the status of the executed instruction back via UART.
+
+The instructions handled by this handler include\+:
+\begin{DoxyItemize}
+\item MOVE\+\_\+\+INSTRUCTION\+: Moves the system with specified arguments.
+\item STOP\+\_\+\+INSTRUCTION\+: Stops the system\textquotesingle{}s current operation (system reboot needed to resume operations)
+\item CANCEL\+\_\+\+INSTRUCTION\+: Cancels the current operation.
+\item RUN\+\_\+\+SETPOINT\+\_\+\+INSTRUCTION\+: Runs a specified setpoint.
+\item RUN\+\_\+\+PROFILE\+\_\+\+INSTRUCTION\+: Runs a profile of setpoints.
+\item GET\+\_\+\+SETPOINT\+\_\+\+INSTRUCTION\+: Retrieves a setpoint.
+\item ADD\+\_\+\+SETPOINT\+\_\+\+INSTRUCTION\+: Adds a new setpoint.
+\item REMOVE\+\_\+\+SETPOINT\+\_\+\+INSTRUCTION\+: Removes an existing setpoint.
+\item GET\+\_\+\+PROFILE\+\_\+\+INSTRUCTION\+: Retrieves a profile.
+\item CLEAR\+\_\+\+PROFILE\+\_\+\+INSTRUCTION\+: Clears a profile from memory.
+\item TEST\+\_\+\+SERVOS\+\_\+\+INSTRUCTION\+: Tests the servo motors.
+\item TEST\+\_\+\+ADXL\+\_\+\+INSTRUCTION\+: Tests the accelerometer (ADXL).
+\item TEST\+\_\+\+FLASH\+\_\+\+INSTRUCTION\+: Tests the flash memory.
+\item TEST\+\_\+\+LED\+\_\+\+INSTRUCTION\+: Toggles an LED for testing.
+\item TEST\+\_\+\+ECHO\+\_\+\+INSTRUCTION\+: Echoes the received instruction back.
+\end{DoxyItemize}
+
+Each instruction is validated for the correct number of arguments, and the corresponding action is performed. If an invalid instruction or incorrect argument count is encountered, an error status is echoed back.
+
+\begin{DoxyReturn}{Returns}
+None 
+\end{DoxyReturn}
+\Hypertarget{group___state_handler_ga3b613d30c36b4e1a4302d5868b7bcc66}\index{State Handlers@{State Handlers}!run\_profile\_state\_handler@{run\_profile\_state\_handler}}
+\index{run\_profile\_state\_handler@{run\_profile\_state\_handler}!State Handlers@{State Handlers}}
+\doxysubsubsection{\texorpdfstring{run\_profile\_state\_handler()}{run\_profile\_state\_handler()}}
+{\footnotesize\ttfamily \label{group___state_handler_ga3b613d30c36b4e1a4302d5868b7bcc66} 
+\mbox{\hyperlink{main_8c_aeaac97ef8a153a4e1abc636f535656eb}{system\+\_\+state\+\_\+t}} run\+\_\+profile\+\_\+state\+\_\+handler (\begin{DoxyParamCaption}\item[{void}]{}{}\end{DoxyParamCaption})}
+
+
+
+Handles the running of a profile by iterating through setpoints. 
+
+This handler processes the current setpoint from a specified profile and moves the system towards the target setpoint values. The setpoint data is retrieved from flash memory, and the system adjusts the pulse width values ({\ttfamily CCR\+\_\+X} and {\ttfamily CCR\+\_\+Y}) to match the setpoint\textquotesingle{}s {\ttfamily x} and {\ttfamily y} values. The movement speed is determined by the {\ttfamily \doxylink{structsetpoint_a0cd38ac3cde531175b412288c6cd2dbc}{setpoint.\+speed}} value. Once a setpoint is reached, the function waits (via PROFILE\+\_\+\+WAIT) and proceeds to the next setpoint in the profile.
+
+If the requested setpoint contains invalid data (indicated by {\ttfamily FLASH\+\_\+\+EMPTY} values), the function returns to the idle state.
+
+The function continues running through the profile until all setpoints are processed, at which point the state transitions to {\ttfamily IDLE\+\_\+\+STATE}.
+
+\begin{DoxyReturn}{Returns}
+The current state, which can be {\ttfamily RUN\+\_\+\+PROFILE\+\_\+\+STATE} if there are more setpoints to process, or {\ttfamily IDLE\+\_\+\+STATE} when the profile has been fully processed or if no valid setpoints are found. 
+\end{DoxyReturn}
+\Hypertarget{group___state_handler_ga1bad73fad37a1d742517b38e92ecde53}\index{State Handlers@{State Handlers}!run\_setpoint\_state\_handler@{run\_setpoint\_state\_handler}}
+\index{run\_setpoint\_state\_handler@{run\_setpoint\_state\_handler}!State Handlers@{State Handlers}}
+\doxysubsubsection{\texorpdfstring{run\_setpoint\_state\_handler()}{run\_setpoint\_state\_handler()}}
+{\footnotesize\ttfamily \label{group___state_handler_ga1bad73fad37a1d742517b38e92ecde53} 
+\mbox{\hyperlink{main_8c_aeaac97ef8a153a4e1abc636f535656eb}{system\+\_\+state\+\_\+t}} run\+\_\+setpoint\+\_\+state\+\_\+handler (\begin{DoxyParamCaption}\item[{void}]{}{}\end{DoxyParamCaption})}
+
+
+
+Handles the running of a setpoint. 
+
+This function manages the movement of the system towards a setpoint defined by {\ttfamily \doxylink{structactive__setpoint_af5e68ad559102359f2d250ae692d9403}{active\+\_\+setpoint.\+x}} and {\ttfamily \doxylink{structactive__setpoint_a6285e6a5dd4f70ad253f3a7eee8520ee}{active\+\_\+setpoint.\+y}}. It increments or decrements the pulse width values ({\ttfamily CCR\+\_\+X} and {\ttfamily CCR\+\_\+Y}) in small steps, determined by the speed specified in {\ttfamily \doxylink{structactive__setpoint_a0cd38ac3cde531175b412288c6cd2dbc}{active\+\_\+setpoint.\+speed}}, until both the {\ttfamily CCR\+\_\+X} and {\ttfamily CCR\+\_\+Y} values match the target setpoint values.
+
+The speed of the movement is inversely related to the {\ttfamily \doxylink{structactive__setpoint_a0cd38ac3cde531175b412288c6cd2dbc}{active\+\_\+setpoint.\+speed}} value, meaning a higher speed value results in a faster movement, while a lower speed results in slower movement. The system prevents overshooting the setpoint by adjusting the pulse width values to exactly match the target when it gets close enough.
+
+Once both {\ttfamily CCR\+\_\+X} and {\ttfamily CCR\+\_\+Y} match the target setpoint values, the state transitions to {\ttfamily IDLE\+\_\+\+STATE}. Otherwise, the function continues to increment or decrement the pulse width values in the next cycle.
+
+\begin{DoxyReturn}{Returns}
+The current state, which will be {\ttfamily RUN\+\_\+\+SETPOINT\+\_\+\+STATE} while the setpoint is being processed and {\ttfamily IDLE\+\_\+\+STATE} once the setpoint is reached. 
+\end{DoxyReturn}
+\Hypertarget{group___state_handler_ga544eac4113c6f21e8cb616bce48d317f}\index{State Handlers@{State Handlers}!run\_test\_state\_handler@{run\_test\_state\_handler}}
+\index{run\_test\_state\_handler@{run\_test\_state\_handler}!State Handlers@{State Handlers}}
+\doxysubsubsection{\texorpdfstring{run\_test\_state\_handler()}{run\_test\_state\_handler()}}
+{\footnotesize\ttfamily \label{group___state_handler_ga544eac4113c6f21e8cb616bce48d317f} 
+\mbox{\hyperlink{main_8c_aeaac97ef8a153a4e1abc636f535656eb}{system\+\_\+state\+\_\+t}} run\+\_\+test\+\_\+state\+\_\+handler (\begin{DoxyParamCaption}\item[{void}]{}{}\end{DoxyParamCaption})}
+
+
+
+Handles the running for running a test on the servo. 
+
+This handler manages the test state by controlling the movement of the servos towards their target setpoints and updating the system accordingly. It checks whether the setpoint has been reached and moves to the next setpoint if necessary. After completing the movement, it performs additional operations such as testing the accelerometer and retrieving the next setpoint for the profile.
+
+\begin{DoxyReturn}{Returns}
+The current state, which can be {\ttfamily IDLE\+\_\+\+STATE} if there are more setpoints to process, or {\ttfamily RUN\+\_\+\+TEST\+\_\+\+STATE} when the profile has been fully processed or if no valid setpoints are found. 
+\end{DoxyReturn}
+\Hypertarget{group___state_handler_gae946d792482c6d01585a939095493562}\index{State Handlers@{State Handlers}!startup\_state\_handler@{startup\_state\_handler}}
+\index{startup\_state\_handler@{startup\_state\_handler}!State Handlers@{State Handlers}}
+\doxysubsubsection{\texorpdfstring{startup\_state\_handler()}{startup\_state\_handler()}}
+{\footnotesize\ttfamily \label{group___state_handler_gae946d792482c6d01585a939095493562} 
+\mbox{\hyperlink{main_8c_aeaac97ef8a153a4e1abc636f535656eb}{system\+\_\+state\+\_\+t}} startup\+\_\+state\+\_\+handler (\begin{DoxyParamCaption}\item[{void}]{}{}\end{DoxyParamCaption})}
+
+
+
+Handles the startup of the system, initializing hardware peripherals and configuring settings. 
+
+This function performs the necessary steps to initialize the system\textquotesingle{}s peripherals and set the initial state. The steps include\+:
+\begin{DoxyItemize}
+\item Configuring PWM for motors (with specified frequency and pulse width).
+\item Starting the PWM signals for motor control.
+\item Setting initial positions for the motors by calling the {\ttfamily move} function.
+\item Starting the timer interrupt for servo control.
+\item Initializing the accelerometer for motion sensing.
+\item Configuring the UART to receive data via interrupts.
+\item Transmitting a startup message code over UART to indicate the device is ready.
+\end{DoxyItemize}
+
+\begin{DoxyReturn}{Returns}
+system\+\_\+state\+\_\+t
+\begin{DoxyItemize}
+\item IDLE\+\_\+\+STATE\+: The system transitions to the idle state after the startup operations are completed. 
+\end{DoxyItemize}
+\end{DoxyReturn}
