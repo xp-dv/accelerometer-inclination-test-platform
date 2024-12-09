@@ -102,7 +102,7 @@ void Error_Handler(void);
 #define INPUT_T_MAX 999U // Max possible instruction code value
 #define PROFILE_LEN (INPUT_T_MAX + 1U) // 1000 setpoints per profile
 #define INSTRUCTION_MAX_ARGS 4U // Maximum user-enterable parameters per instruction
-#define TOTAL_PROFILES 10U
+#define TOTAL_PROFILES 11U
 #define TOTAL_SETPOINTS (TOTAL_PROFILES * PROFILE_LEN)
 
 // User-Facing Function Argument Limitations
@@ -147,6 +147,7 @@ void Error_Handler(void);
 #define SPEED_MAX 10U
 #define STEP_DELAY 100U // ms
 #define PROFILE_WAIT 500U //ms
+#define TEST_PROFILE 0U 
 
 #define PULSE_WIDTH_RANGE (PULSE_WIDTH_MAX - PULSE_WIDTH_MIN)
 #define PULSE_WIDTH_MIN 500 // us
